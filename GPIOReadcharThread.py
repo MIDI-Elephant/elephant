@@ -11,7 +11,7 @@ import atexit
 STOP_BOARD=11
 PLAY_BOARD=13
 RECORD_BOARD=15
-LOOP_BOARD=19
+AUTO_RECORD_BOARD=19
 BACK_BOARD=21
 FORWARD_BOARD=23
 RECORD_STATUS_LED=26
@@ -19,7 +19,7 @@ RECORD_STATUS_LED=26
 STOP_GPIO=1
 PLAY_GPIO=0
 RECORD_GPIO=3
-LOOP_GPIO=15
+AUTO_RECORD_GPIO=15
 BACK_GPIO=16
 FORWARD_GPIO=14
 
@@ -27,7 +27,7 @@ board_pin_to_gpio = {
     STOP_BOARD     : STOP_GPIO,
     PLAY_BOARD     : PLAY_GPIO,
     RECORD_BOARD   : RECORD_GPIO,
-    LOOP_BOARD     : LOOP_GPIO,
+    AUTO_RECORD_BOARD     : AUTO_RECORD_GPIO,
     BACK_BOARD     : BACK_GPIO,
     FORWARD_BOARD  : FORWARD_GPIO
     }
@@ -36,7 +36,7 @@ gpio_to_board_pin = {
     STOP_GPIO : STOP_BOARD,
     PLAY_GPIO : PLAY_BOARD,
     RECORD_GPIO : RECORD_BOARD,
-    LOOP_GPIO : LOOP_BOARD,
+    AUTO_RECORD_GPIO : AUTO_RECORD_BOARD,
     BACK_GPIO : BACK_BOARD,
     FORWARD_GPIO : FORWARD_BOARD
     }
@@ -45,7 +45,7 @@ all_board_pins = {
     STOP_BOARD,
     PLAY_BOARD,
     RECORD_BOARD,
-    LOOP_BOARD,
+    AUTO_RECORD_BOARD,
     BACK_BOARD,
     FORWARD_BOARD
     }
@@ -54,7 +54,7 @@ all_gpio_channels = {
     STOP_GPIO,
     PLAY_GPIO,
     RECORD_GPIO,
-    LOOP_GPIO,
+    AUTO_RECORD_GPIO,
     BACK_GPIO,
     FORWARD_GPIO
 }
@@ -64,35 +64,21 @@ gpio_to_button = {
     STOP_GPIO    : "STOP",
     PLAY_GPIO    : "PLAY",
     RECORD_GPIO  : "RECORD",
-    LOOP_GPIO    : "LOOP",
+    AUTO_RECORD_GPIO    : "AUTO_RECORD",
     BACK_GPIO    : "BACK",
     FORWARD_GPIO : "FORWARD"   
     }
 
 board_pin_to_char = {
-    STOP_BOARD    : "s",
-    PLAY_BOARD    : "p",
-    RECORD_BOARD  : "r",
-    LOOP_BOARD    : "l",
-    BACK_BOARD    : "b",
-    FORWARD_BOARD : "f"   
+    STOP_BOARD          : "s",
+    PLAY_BOARD          : "p",
+    RECORD_BOARD        : "r",
+    AUTO_RECORD_BOARD   : "a",
+    BACK_BOARD          : "b",
+    FORWARD_BOARD       : "f"   
 }
 
-char_queue=queue.Queue(5)
-    
-def gpio_rising_callback(channel):
-    char = gpio_channel_to_char[channel]
-    command = channel_to_button[channel]
-    button_channel = gpio_channel_to_button_channel[channel]
-     
-    print(f"RISING:Channel={channel} for {command} command")
-    
-    if channel != BACK_GPIO and channel != FORWARD_GPIO:
-        print(f"RISING: Queuing {char}")
-        char_queue.put(char)
-    else:
-        print(f"RISING: Detected {command}")
-    
+char_queue=queue.Queue(10)
     
 def setup_gpio():
     
@@ -118,7 +104,7 @@ class GPIOReadcharThread(threading.Thread):
         setup_gpio()
         sleep(1)
         while True:
-            sleep(.1)
+            sleep(.08)
             try:
                 for pin in all_board_pins:
                     if GPIO.input(pin):

@@ -17,7 +17,6 @@ import KeypadThread
 from ElephantCommon import *
 from ElephantCommon import event_map as event_map
 import LEDManager
-import GPIOReadcharThread
 
 use_lcd = False
 use_gpio = False
@@ -33,6 +32,7 @@ except:
 try:
     import OPi.GPIO as GPIO
     use_gpio = True
+    import GPIOReadcharThread
 except:
     pass
 
@@ -120,7 +120,19 @@ states = [
               name=S_SEEKING_FORWARD,
               on_enter=['e_seeking_forward'],
               on_exit=['x_seeking_forward']
-              )
+              ),
+          State(
+              name=S_WAITING_FOR_MIDI,
+              on_enter=['e_waiting_for_midi']
+              ),
+          State(
+              name=S_AUTO_RECORDING,
+              on_enter=['e_auto_recording']
+              ),
+          State(
+              name=S_AUTO_SAVING,
+              on_enter=['e_auto_saving']
+              ),
           ]
 
 transitions = [
@@ -156,11 +168,21 @@ transitions = [
         # Recording
         [ E_RECORD_BUTTON, S_STOPPED, S_RECORDING ],
         [ E_RECORD_BUTTON, S_RECORDING, S_SAVING_RECORDING ],
+        [ E_RECORD_BUTTON, S_RECORDING_PAUSED, S_SAVING_RECORDING ],
         [ E_STOP_BUTTON, S_RECORDING, S_SAVING_RECORDING ],
         [ E_PLAY_PAUSE_BUTTON, S_RECORDING, S_RECORDING_PAUSED ],
         [ E_PLAY_PAUSE_BUTTON, S_RECORDING_PAUSED, S_RECORDING ],
         [ E_STOP_BUTTON, S_RECORDING_PAUSED, S_SAVING_RECORDING ],
-        [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_STOPPED ]
+        [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_STOPPED ],
+        
+        # Auto-recording
+        [ E_AUTO_RECORD_BUTTON, S_STOPPED, S_WAITING_FOR_MIDI ],
+        [ E_MIDI_DETECTED, S_WAITING_FOR_MIDI, S_AUTO_RECORDING ],
+        [ E_MIDI_PAUSED, S_AUTO_RECORDING, S_AUTO_SAVING ],
+        [ E_RECORDING_SAVED, S_AUTO_SAVING, S_WAITING_FOR_MIDI ],
+        [ E_STOP_BUTTON, S_AUTO_RECORDING, S_SAVING_RECORDING ],
+        [ E_PLAY_PAUSE_BUTTON, S_RECORDING_PAUSED, S_RECORDING ],
+        [ E_STOP_BUTTON, S_WAITING_FOR_MIDI, S_STOPPED ],
         ]
 
 
@@ -175,12 +197,39 @@ class Elephant(threading.Thread):
        self.led_manager = None
 
     def raise_event(self, event_name):
-        #print(f"Raising {event_name} event")
         try:
-            getattr(self, event_name)()
+            self.event_queue.put(event_name)
         except Exception as exception:
             print(exception)
 
+    def e_default(self, event_data): 
+        print(event_data.transition)
+        display(self.state)
+        
+    def e_waiting_for_midi(self, event_data): 
+        print(event_data.transition)
+        display(self.state)
+        if self.led_manager != None:
+            self.led_manager.led_blink_on()
+        sleep(5)
+        if (self.state != S_STOPPED):
+            self.raise_event(E_MIDI_DETECTED)
+        
+    def e_auto_recording(self, event_data): 
+        display(self.state)
+        if self.led_manager != None:
+            self.led_manager.led_on()
+        sleep(5)
+        if (self.state != S_STOPPED):
+            self.raise_event(E_MIDI_PAUSED)
+        
+    def e_auto_saving(self, event_data): 
+        display(self.state)
+        if self.led_manager != None:
+            self.led_manager.led_off()
+        sleep(1)
+        self.raise_event(E_RECORDING_SAVED)
+     
     def e_playing(self, event_data): 
         print(event_data.transition)
         display(self.state)
@@ -200,6 +249,10 @@ class Elephant(threading.Thread):
         display(self.state)
         if self.led_manager != None:
             self.led_manager.led_on()
+
+    def x_recording(self, event_data): 
+        pass
+        #print(f"Exit {self.state}")
 
     def x_recording(self, event_data): 
         pass
@@ -227,6 +280,8 @@ class Elephant(threading.Thread):
 
     def e_stopped(self, event_data) :
         display(self.state)
+        if self.led_manager != None:
+            self.led_manager.led_off()
 
     def x_stopped(self, event_data) :
         pass
@@ -310,8 +365,8 @@ class Elephant(threading.Thread):
         self.machine = Machine(self, states=states, transitions=transitions, 
                                initial = 'Stopped', send_event=True)
         
-        self.event_queue = queue.Queue(5)
-        characterQueue = queue.Queue(5)
+        self.event_queue = queue.Queue(10)
+        characterQueue = queue.Queue(10)
     
         event_thread = EventThread.EventThread(name='events',
                                    char_queue=characterQueue,
@@ -330,6 +385,7 @@ class Elephant(threading.Thread):
                 logging.debug('Getting ' + str(trigger_method)
                               + ' : ' + str(self.event_queue.qsize()) + ' items in queue')
                 try:
+                    print(f"Executing trigger method {trigger_method}")
                     getattr(self.state_machine, trigger_method)()
                 except Exception as exception:
                     print(exception)

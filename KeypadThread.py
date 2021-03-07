@@ -33,7 +33,7 @@ class KeypadThread(threading.Thread):
     def __init__(self, name):
         threading.Thread.__init__(self)
         self.name = name
-        self.output_queue=queue.Queue(5)
+        self.output_queue=queue.Queue(10)
         self.readchar_thread=None
         self.input_queue=None
        
@@ -82,7 +82,6 @@ class KeypadThread(threading.Thread):
         
         while True:
             buttonChar = self.input_queue.get()
-            
             if (not buttonChar in event_map.keys()):
                 print(f"Invalid character {buttonChar}")
                 continue

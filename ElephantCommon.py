@@ -3,7 +3,7 @@ E_RECORD_BUTTON='RecordButton'
 E_STOP_BUTTON='StopButton'
 E_BACK_BUTTON='BackButton'
 E_FORWARD_BUTTON='NextButton'
-E_LOOP_BUTTON='LoopButton'
+E_AUTO_RECORD_BUTTON='AutoRecordButton'
 
 # Triggers via internal events
 E_RECORDING_SAVED='RecordingSaved'
@@ -16,6 +16,8 @@ E_SEEK_FORWARD='SeekForward'
 E_SEEK_FORWARD_RELEASED='SeekForwardReleased'
 E_SEEK_BACK='SeekBack'
 E_SEEK_BACK_RELEASED='SeekBackReleased'
+E_MIDI_DETECTED='MIDIDetected'
+E_MIDI_PAUSED='MIDIPaused'
 
 event_map ={
     'p' : E_PLAY_PAUSE_BUTTON, 
@@ -23,7 +25,7 @@ event_map ={
     's' : E_STOP_BUTTON,
     'b' : E_BACK_BUTTON,
     'f' : E_FORWARD_BUTTON,
-    'l' : E_LOOP_BUTTON,
+    'a' : E_AUTO_RECORD_BUTTON,
     'B' : E_SKIP_BACK,
     'F' : E_SKIP_FORWARD,
     '{' : E_SEEK_BACK,
@@ -67,5 +69,8 @@ S_SKIP_BACK_WHILE_PLAYING_PAUSED='SkipBackWhilePlayingPaused'
 S_SKIP_FORWARD_WHILE_PLAYING='SkipForwardWhilePlaying'
 S_SEEKING_FORWARD='SeekingForward'
 S_SEEKING_BACK='SeekingBack'
+S_WAITING_FOR_MIDI='WaitingForMidi'
+S_AUTO_RECORDING='AutoRecording'
+S_AUTO_SAVING='AutoSaving'
 
 

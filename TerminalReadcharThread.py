@@ -10,14 +10,13 @@ import threading
 import logging
 import queue
 from queue import Empty
-import ElephantThread
 import EventThread
 import KeypadThread
 from ElephantCommon import event_map as event_map
 from ElephantCommon import back_forward_to_seek_map as back_forward_to_seek_map
 from ElephantCommon import back_forward_to_seek_release_map as back_forward_to_seek_release_map
 
-char_queue=queue.Queue(5)
+char_queue=queue.Queue(10)
 
 class TerminalReadcharThread(threading.Thread):
     def __init__(self, name):
@@ -61,7 +60,7 @@ class TerminalReadcharThread(threading.Thread):
             print("using myreadchar()")
             use_myreadchar = True
         
-        use_myreadchar = False
+        use_myreadchar = True
       
         while True:
             try:

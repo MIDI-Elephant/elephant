@@ -13,15 +13,17 @@ except:
 
 ON=1
 OFF=2
-BLINKING=3
+SLEEPING=3
+BLINKING=4
 
 class LEDManager(threading.Thread):
-    def __init__(self, name, led_pin):
+    def __init__(self, name, led_pin, blink_delay=.75):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
        self.name = name
        self.led_pin=led_pin
        self.state = OFF
+       self.blink_delay = blink_delay
        
        GPIO.setboard(GPIO.ZERO)  
        GPIO.setmode(GPIO.BOARD)
@@ -47,13 +49,24 @@ class LEDManager(threading.Thread):
        self.state=OFF
         
     def run(self):
+        
         while True:
-            if self.state == BLINKING:
-                self._led_on()
-                sleep(.75)
-                self._led_off()
-                sleep(.75)
-            elif self.state == ON:
+            # This looks pretty unorthodox but it's here to allow
+            # for the lowest possible latency when switching from
+            # blinking to on
+            while self.state == BLINKING:
+                for blinking_state in [OFF, SLEEPING, ON, SLEEPING]:
+                    if self.state == BLINKING:
+                        if blinking_state == ON:
+                            self._led_on()
+                        elif blinking_state == SLEEPING:
+                            sleep(self.blink_delay)
+                        elif blinking_state == OFF:
+                            self._led_off()
+                    else:
+                        break
+                
+            if self.state == ON:
                 self._led_on()
                 sleep(.2)
             else:
