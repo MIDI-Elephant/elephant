@@ -9,12 +9,14 @@ import readchar
 import threading
 import logging
 import queue
+import termios as termios
+import tty as tty
 from queue import Empty
 import EventThread
 import KeypadThread
 from ElephantCommon import event_map as event_map
-from ElephantCommon import back_forward_to_seek_map as back_forward_to_seek_map
-from ElephantCommon import back_forward_to_seek_release_map as back_forward_to_seek_release_map
+from ElephantCommon import held_character_translation_map as held_character_translation_map
+from ElephantCommon import held_character_release_map as held_character_release_map
 
 char_queue=queue.Queue(10)
 
@@ -54,14 +56,15 @@ class TerminalReadcharThread(threading.Thread):
         print("TerminalReadcharThread is running...")
         use_myreadchar = False
         try:
+            fd = sys.stdin.fileno()
             old_settings = termios.tcgetattr(fd)
             print("using readchar.readchar()")
-        except:
+        except Exception as e:
+            print(f"Exception getting settings.. {e}")
             print("using myreadchar()")
             use_myreadchar = True
-        
-        use_myreadchar = True
       
+        
         while True:
             try:
                 if use_myreadchar:

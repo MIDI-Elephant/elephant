@@ -110,7 +110,8 @@ class GPIOReadcharThread(threading.Thread):
                     if GPIO.input(pin):
                        char = board_pin_to_char[pin]
                        self.output_queue.put(char)
-                       if (pin != FORWARD_BOARD and pin != BACK_BOARD):
+                       if (pin != FORWARD_BOARD and pin != BACK_BOARD
+                           and pin != STOP_BOARD):
                            while GPIO.input(pin):
                                pass
                             

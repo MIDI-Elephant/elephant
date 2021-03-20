@@ -86,25 +86,28 @@ class KeypadThread(threading.Thread):
                 print(f"Invalid character {buttonChar}")
                 continue
             
-            if (buttonChar != 'b' and buttonChar != 'f'):
+            # If it's not a character that can be repeated
+            if (buttonChar not in characters_that_can_repeat):
                 try:
                     self.output_queue.put(buttonChar)
                 except Exception as exception:
                     print(exception)
-                
+                 
             else:
+                # If it's a held character, map it to the appropriate character
                 if self.is_held_char(charToCheck = buttonChar):
-                    charToPut = back_forward_to_seek_map[buttonChar]
+                    charToPut = held_character_translation_map[buttonChar]
                     self.output_queue.put(charToPut)
 
                     while not self.is_held_char_timeout(charToCheck = buttonChar):
                         pass
                     
-                    charToPut = back_forward_to_seek_release_map[buttonChar]
+                    charToPut = held_character_release_map[buttonChar]
                 else:
-                    charToPut = buttonChar.upper()
-                    
-                self.output_queue.put(charToPut)
+                    charToPut = non_held_character_translation_map[buttonChar]
+                 
+                if (charToPut != ' '):
+                    self.output_queue.put(charToPut)
 
         return
   

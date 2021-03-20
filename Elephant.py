@@ -1,4 +1,4 @@
-
+#!/usr/local/bin/python3
 import sys 
 import time
 from time import sleep as sleep
@@ -14,18 +14,30 @@ from queue import Empty
 import Elephant
 import EventThread
 import KeypadThread
+import RecordingService
 from ElephantCommon import *
 from ElephantCommon import event_map as event_map
 import LEDManager
+import mido
+
+
+#outPortName='f_midi'
+#inPortName='Novation SL MkIII:Novation SL MkIII MIDI 1 20:0'
+outPortName='ElephantIAC'
+inPortName='Novation SL MkIII SL MkIII MIDI'
+
+
 
 use_lcd = False
 use_gpio = False
+use_kmod = False
 
 try:
     import i2clcd as LCD
     use_lcd = True
     lcd = LCD.i2clcd(i2c_bus=0, i2c_addr=0x27, lcd_width=20)
     lcd.init()
+    lcd.set_backlight(True)
 except:
     pass
 
@@ -36,6 +48,11 @@ try:
 except:
     pass
 
+try:
+    import kmod
+    use_kmod = True
+except:
+    pass
 
 def lprint(text):
     lcd.clear()
@@ -48,6 +65,29 @@ def display(text):
     else:
         print(text)
 
+def module_is_loaded(module):
+    if use_kmod:
+        k = kmod.Kmod()
+        for tuple in k.list():
+            if tuple[0] == module:
+                return True
+        return False
+    
+def load_kernel_module(module):
+    if use_kmod:
+        k = kmod.Kmod()
+        if (not module_is_loaded(module)):
+            k.modprobe(module)
+    else:
+         display(f"EMU: {module} loaded")
+    
+def remove_kernel_module(module):
+    if use_lcd:
+        k = kmod.Kmod()
+        if (module_is_loaded(module)):
+            k.rmmod(module)
+    else:
+        display(f"EMU: {module} removed")
     
 states = [
           State(
@@ -123,16 +163,23 @@ states = [
               ),
           State(
               name=S_WAITING_FOR_MIDI,
-              on_enter=['e_waiting_for_midi']
+              on_enter=['e_waiting_for_midi'],
+              on_exit=['x_waiting_for_midi']
               ),
           State(
               name=S_AUTO_RECORDING,
-              on_enter=['e_auto_recording']
+              on_enter=['e_auto_recording'],
+              on_exit=['x_auto_recording'],
               ),
           State(
               name=S_AUTO_SAVING,
-              on_enter=['e_auto_saving']
+              on_enter=['e_auto_saving'],
+              on_exit=['x_auto_saving'],
               ),
+          State(
+              name=S_MASS_STORAGE_MANAGEMENT,
+              on_enter=['e_mass_storage_management'],
+              on_exit=['x_mass_storage_management'],)
           ]
 
 transitions = [
@@ -141,6 +188,10 @@ transitions = [
         [ E_PREVIOUS_TRACK, S_SKIP_BACK_WHILE_STOPPED, S_STOPPED ],
         [ E_SKIP_FORWARD, S_STOPPED, S_SKIP_FORWARD_WHILE_STOPPED ],
         [ E_NEXT_TRACK, S_SKIP_FORWARD_WHILE_STOPPED, S_STOPPED ],
+        [ E_SWITCH_MODE, S_STOPPED, S_MASS_STORAGE_MANAGEMENT],
+        [ E_SWITCH_MODE_RELEASED, S_MASS_STORAGE_MANAGEMENT, S_MASS_STORAGE_MANAGEMENT],
+        [ E_SWITCH_MODE, S_MASS_STORAGE_MANAGEMENT, S_STOPPED],
+        [ E_SWITCH_MODE_RELEASED, S_STOPPED, S_STOPPED],
         
         # Playing
         [ E_PLAY_PAUSE_BUTTON, S_STOPPED, S_PLAYING ],
@@ -214,6 +265,9 @@ class Elephant(threading.Thread):
         sleep(5)
         if (self.state != S_STOPPED):
             self.raise_event(E_MIDI_DETECTED)
+            
+    def x_waiting_for_midi(self, event_data): 
+        pass
         
     def e_auto_recording(self, event_data): 
         display(self.state)
@@ -222,6 +276,9 @@ class Elephant(threading.Thread):
         sleep(5)
         if (self.state != S_STOPPED):
             self.raise_event(E_MIDI_PAUSED)
+            
+    def x_auto_recording(self, event_data): 
+        pass
         
     def e_auto_saving(self, event_data): 
         display(self.state)
@@ -229,10 +286,23 @@ class Elephant(threading.Thread):
             self.led_manager.led_off()
         sleep(1)
         self.raise_event(E_RECORDING_SAVED)
-     
+    
+    def x_auto_saving(self, event_data): 
+        pass
+    
     def e_playing(self, event_data): 
         print(event_data.transition)
         display(self.state)
+        if False:
+            outPort=mido.open_output(outPortName)
+            midifile = MidiFile(theOnlyMIDIFile)
+            display(f"Playing {theOnlyMIDIFile}")
+            for msg in midifile.play():
+                time.sleep(msg.time/32)
+                if not msg.is_meta:
+                    port.send(msg)
+            outPort.reset()
+            outPort.close()
 
     def x_playing(self, event_data): 
         pass
@@ -249,10 +319,11 @@ class Elephant(threading.Thread):
         display(self.state)
         if self.led_manager != None:
             self.led_manager.led_on()
+        if False: 
+            recordingService = RecordingService.RecordingService(name="RecordingService", 
+                                                state_machine=self.state_machine)
+            recordingService.start()
 
-    def x_recording(self, event_data): 
-        pass
-        #print(f"Exit {self.state}")
 
     def x_recording(self, event_data): 
         pass
@@ -282,6 +353,7 @@ class Elephant(threading.Thread):
         display(self.state)
         if self.led_manager != None:
             self.led_manager.led_off()
+        load_kernel_module('g_midi')
 
     def x_stopped(self, event_data) :
         pass
@@ -353,6 +425,15 @@ class Elephant(threading.Thread):
 
     def x_seeking_back(self, event_data): 
         pass
+    
+    def e_mass_storage_management(self, event_data): 
+        print(event_data.transition)
+        display(self.state)
+        remove_kernel_module('g_midi')
+        load_kernel_module('g_mass_storage')
+
+    def x_mass_storage_management(self, event_data): 
+        remove_kernel_module('g_mass_storage')
     
     def setup_state_machine(self):
         
