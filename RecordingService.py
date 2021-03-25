@@ -1,43 +1,71 @@
 import threading
-import ElephantCommon as elephant
+import ElephantCommon as common
+import Elephant
+import time as time
 import mido as mido
 
-#outPortName='f_midi'
-outPortName='ElephantIAC'
-#inPortName='Novation SL MkIII:Novation SL MkIII MIDI 1 20:0'
-inPortName='Novation SL MkIII SL MkIII MIDI'
-#theOnlyMIDIFile = 'usb_share/midifile.mid'
-theOnlyMIDIFile = '/Users/edward/midifile.mid'
-
 class RecordingService(threading.Thread):
-    def __init__(self, name, state_machine=None):
+    def __init__(self, name, elephant, auto):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
-       self.state_machine = state_machine
+       self.elephant = elephant
        self.name = name
-
-
+       self.auto=auto
+     
+    def midi_pause_elapsed(self, start_time): 
+       if self.auto:
+           return time.time() - start_time >= common.MAX_MIDI_IDLE_TIME_SECONDS
+       else:
+           return False 
+                   
     def run(self):
-        print("RecordingService started...")
-        start_time = time.time()
-        inPort=mido.open_input(inPortName)
-        outPort=mido.open_output(outPortName)
+        print(f"{self.name} started...")
+        print(f"Auto={self.auto}")
+        inPort=self.elephant.get_input_port()
+        outPort=self.elephant.get_output_port()
         midifile = mido.MidiFile(None, None, 0, 20000) #10000 is a ticks_per_beat value
         track = mido.MidiTrack()
         midifile.tracks.append(track)
-
-        while self.state_machine.state == elephant.S_RECORDING:
-            for msg in inPort.iter_pending():
-#                outPort.send(msg)
-                if (msg.type == 'note_on' or
-                    msg.type == 'note_off'):
-                    track.append(msg)
-                
-        print("RecordingService exiting...")
+        self.elephant.set_midi_file(midifile)
         
-        print("Saving recording...")
-        midifile.save(theOnlyMIDIFile) 
-        outPort.reset()
-        outPort.close()
-        inPort.close()   
+        ticksPerBeat = 10000
+        tempo = mido.bpm2tempo(120)
+        
+        # First check for a trigger message that may have been left
+        # because of triggering on a MIDI event
+        msg = self.elephant.get_trigger_message()
+        if not msg is None and common.is_channel_message(msg):
+            msg.time = int(mido.second2tick(0, ticksPerBeat, tempo))
+            outPort.send(msg)
+            track.append(msg)
+
+        last_time = time.time()
+        start_time = time.time()
+        while self.elephant.get_state() == common.S_RECORDING or self.elephant.get_state() == common.S_AUTO_RECORDING:
+            while True:
+                msg = inPort.poll()
+                
+                if msg is None:
+                    time.sleep(.001) 
+                    continue
+                
+                outPort.send(msg)
+                #print(msg)
+                
+                if not common.is_channel_message(msg) and self.midi_pause_elapsed(start_time):
+                    self.elephant.raise_event(common.E_MIDI_PAUSED)
+                    return
+                elif common.is_channel_message(msg):
+                    break                    
+        
+            current_time = time.time()
+            delta_time = current_time - last_time
+            intTime = int(mido.second2tick(delta_time, ticksPerBeat, tempo))
+            last_time = current_time
+            msg.time = intTime
+            #print(f"Appending {msg}")
+            track.append(msg)
+            start_time = time.time()
+            
+        print(f"{self.name} exiting...")
         

@@ -11,23 +11,19 @@ import threading
 import logging
 import queue
 from queue import Empty
-import Elephant
 import EventThread
 import KeypadThread
 import RecordingService
+import PlaybackService
+import MIDIEventService
 from ElephantCommon import *
 from ElephantCommon import event_map as event_map
 import LEDManager
 import mido
+from mido import MidiFile
+from datetime import datetime
 
-
-#outPortName='f_midi'
-#inPortName='Novation SL MkIII:Novation SL MkIII MIDI 1 20:0'
-outPortName='ElephantIAC'
-inPortName='Novation SL MkIII SL MkIII MIDI'
-
-
-
+AutoRecordEnabled=False
 use_lcd = False
 use_gpio = False
 use_kmod = False
@@ -51,8 +47,19 @@ except:
 try:
     import kmod
     use_kmod = True
+    outPortName='f_midi'
+    inPortNames=[
+                    'Novation SL MkIII:Novation SL MkIII MIDI 1 24:0',
+                    'MIDI9/QRS PNOScan MIDI 1'
+                ]
+    midi_base_directory= '/mnt/usb_share'
+ 
 except:
-    pass
+    outPortName='ElephantIAC'
+    inPortNames=['iRig MIDI 2']
+    midi_base_directory= '/Users/edward/MIDI'
+
+    
 
 def lprint(text):
     lcd.clear()
@@ -198,6 +205,7 @@ transitions = [
         [ E_PLAY_PAUSE_BUTTON, S_PLAYING, S_PLAYING_PAUSED ],
         [ E_PLAY_PAUSE_BUTTON, S_PLAYING_PAUSED, S_PLAYING ],
         [ E_END_OF_TRACK, S_PLAYING, S_STOPPED ],
+        [ E_NO_TRACK, S_PLAYING, S_STOPPED ],
         [ E_STOP_BUTTON, S_PLAYING, S_STOPPED ],
         [ E_STOP_BUTTON, S_PLAYING_PAUSED, S_STOPPED ],
         
@@ -232,8 +240,8 @@ transitions = [
         [ E_MIDI_PAUSED, S_AUTO_RECORDING, S_AUTO_SAVING ],
         [ E_RECORDING_SAVED, S_AUTO_SAVING, S_WAITING_FOR_MIDI ],
         [ E_STOP_BUTTON, S_AUTO_RECORDING, S_SAVING_RECORDING ],
-        [ E_PLAY_PAUSE_BUTTON, S_RECORDING_PAUSED, S_RECORDING ],
-        [ E_STOP_BUTTON, S_WAITING_FOR_MIDI, S_STOPPED ],
+        [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_STOPPED],
+        [ E_STOP_BUTTON, S_WAITING_FOR_MIDI, S_STOPPED ]
         ]
 
 
@@ -246,13 +254,66 @@ class Elephant(threading.Thread):
        self.state_machine = self
        self.name = name
        self.led_manager = None
-
+       
+       self.trigger_message = None
+       self.inputPort = None
+       self.outputPort = None
+       self.midifile = None
+       
+       self.last_saved_file = None
+       
+    def get_last_saved_file(self):
+        return self.last_saved_file
+    
+    def get_midi_base_directory(self):
+        return midi_base_directory
+    
+    def set_trigger_message(self, msg):
+        self.trigger_message = msg
+        
+    def get_trigger_message(self):
+        trigger_message = self.trigger_message
+        if not trigger_message is None:
+            self.trigger_message = None
+            
+        return trigger_message
+        
+    
+    def set_midi_file(self, file):
+        self.midifile = file
+    
+    def get_state(self):
+        return self.state
+    
+    def get_input_port(self):
+        return self.inputPort
+    
+    def get_output_port(self):
+        return self.outputPort
+    
     def raise_event(self, event_name):
         try:
             self.event_queue.put(event_name)
         except Exception as exception:
             print(exception)
-
+            
+    def save_recording(self):
+        if self.midifile is None:
+            display("Nothing to save...")
+            return
+        
+        filename = f"{datetime.today().strftime('%Y-%m-%d-%H-%M-%S')}.mid"
+        display("Saving {filename}")
+        file_to_save=f"{midi_base_directory}/{filename}"
+        print(f"File={file_to_save}")
+        self.midifile.save(file_to_save) 
+        self.last_saved_file = filename
+        self.set_midi_file(None)
+        self.raise_event(E_RECORDING_SAVED)
+            
+    #####################################################        
+    # State machine events are defined here        
+    #####################################################
     def e_default(self, event_data): 
         print(event_data.transition)
         display(self.state)
@@ -262,9 +323,10 @@ class Elephant(threading.Thread):
         display(self.state)
         if self.led_manager != None:
             self.led_manager.led_blink_on()
-        sleep(5)
-        if (self.state != S_STOPPED):
-            self.raise_event(E_MIDI_DETECTED)
+        midiEventService = MIDIEventService.MIDIEventService(name="MIDIEventService", 
+                                                elephant=self)
+        midiEventService.start()
+        
             
     def x_waiting_for_midi(self, event_data): 
         pass
@@ -273,9 +335,10 @@ class Elephant(threading.Thread):
         display(self.state)
         if self.led_manager != None:
             self.led_manager.led_on()
-        sleep(5)
-        if (self.state != S_STOPPED):
-            self.raise_event(E_MIDI_PAUSED)
+        
+        recordingService = RecordingService.RecordingService("AutoRecordingService", 
+                                                self, True)
+        recordingService.start()
             
     def x_auto_recording(self, event_data): 
         pass
@@ -284,8 +347,8 @@ class Elephant(threading.Thread):
         display(self.state)
         if self.led_manager != None:
             self.led_manager.led_off()
-        sleep(1)
-        self.raise_event(E_RECORDING_SAVED)
+        
+        self.save_recording()
     
     def x_auto_saving(self, event_data): 
         pass
@@ -293,16 +356,9 @@ class Elephant(threading.Thread):
     def e_playing(self, event_data): 
         print(event_data.transition)
         display(self.state)
-        if False:
-            outPort=mido.open_output(outPortName)
-            midifile = MidiFile(theOnlyMIDIFile)
-            display(f"Playing {theOnlyMIDIFile}")
-            for msg in midifile.play():
-                time.sleep(msg.time/32)
-                if not msg.is_meta:
-                    port.send(msg)
-            outPort.reset()
-            outPort.close()
+        playbackService = PlaybackService.PlaybackService(name="PlaybackService", 
+                                                          elephant=self)
+        playbackService.start()
 
     def x_playing(self, event_data): 
         pass
@@ -317,12 +373,13 @@ class Elephant(threading.Thread):
 
     def e_recording(self, event_data): 
         display(self.state)
+        
         if self.led_manager != None:
             self.led_manager.led_on()
-        if False: 
-            recordingService = RecordingService.RecordingService(name="RecordingService", 
-                                                state_machine=self.state_machine)
-            recordingService.start()
+            
+        recordingService = RecordingService.RecordingService("RecordingService", 
+                                                             self, False)
+        recordingService.start()
 
 
     def x_recording(self, event_data): 
@@ -342,8 +399,8 @@ class Elephant(threading.Thread):
         display(self.state)
         if self.led_manager != None:
             self.led_manager.led_off()
-        sleep(1)
-        self.raise_event(E_RECORDING_SAVED)
+       
+        self.save_recording()
        
 
     def x_saving_recording(self, event_data) :
@@ -444,7 +501,7 @@ class Elephant(threading.Thread):
             self.led_manager = led_manager
         
         self.machine = Machine(self, states=states, transitions=transitions, 
-                               initial = 'Stopped', send_event=True)
+                               initial = S_STOPPED, send_event=True)
         
         self.event_queue = queue.Queue(10)
         characterQueue = queue.Queue(10)
@@ -460,6 +517,24 @@ class Elephant(threading.Thread):
     def run(self):
         self.setup_state_machine()
         display("Elephant listening!")
+
+        ## Cleanup - exception handling etc.
+        # Open up the input and output ports.  It's OK to run
+        # without an output port but we must have an input port.
+        for name in inPortNames:
+            try:
+                self.inputPort = mido.open_input(name)
+                display(f"Using {name.split()[0]}")
+                break
+            except Exception as e:
+               pass
+                
+        print(f"Opening output {outPortName}")
+        self.outputPort = mido.open_output(outPortName)
+        
+        if AutoRecordEnabled:
+            self.raise_event(E_AUTO_RECORD_BUTTON)
+        
         while True:
             if not self.event_queue.empty():
                 trigger_method = self.event_queue.get()
