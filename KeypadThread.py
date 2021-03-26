@@ -21,12 +21,14 @@ try:
     use_gpio = True
     first_repeat_wait = .1
     normal_repeat_wait = .1
+    total_repeat_count = 4
     print("Using GPIOReadCharThread")
 except:
     use_gpio = False
     from TerminalReadcharThread import TerminalReadcharThread as readchar
     first_repeat_wait = .5
     normal_repeat_wait = .1
+    total_repeat_count = 2
     print("Using TerminalReadcharThread")
 
 class KeypadThread(threading.Thread):
@@ -41,7 +43,7 @@ class KeypadThread(threading.Thread):
         return self.output_queue
     
     def is_held_char(self, charToCheck):
-     repeat_count = 2
+     repeat_count = 0
      repeat_wait = first_repeat_wait
      while True:
         try: 
@@ -55,7 +57,7 @@ class KeypadThread(threading.Thread):
         repeat_count  += 1
         repeat_wait = normal_repeat_wait
 
-        if repeat_count == 2:
+        if repeat_count == total_repeat_count:
             return True
 
     def is_held_char_timeout(self, charToCheck):

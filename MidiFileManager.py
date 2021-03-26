@@ -74,7 +74,7 @@ class MidiFileManager(threading.Thread):
         
         if len(self.current_list) - 1 >= self.current_file_index:
             file_to_return = self.current_list[self.current_file_index]
-            Elephant.display(file_to_return.split('/')[3].split(".")[0], 1)
+            Elephant.display(f">{file_to_return.split('/')[3].split('.')[0]}", 1)
             return file_to_return
         
         return None
