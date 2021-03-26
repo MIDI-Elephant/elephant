@@ -14,7 +14,9 @@ class RecordingService(threading.Thread):
      
     def midi_pause_elapsed(self, start_time): 
        if self.auto:
-           return time.time() - start_time >= common.MAX_MIDI_IDLE_TIME_SECONDS
+           elapsed = time.time() - start_time
+           #print(f"Elapsed: {elapsed}")
+           return elapsed >= common.MAX_MIDI_IDLE_TIME_SECONDS
        else:
            return False 
                    
@@ -42,15 +44,19 @@ class RecordingService(threading.Thread):
         last_time = time.time()
         start_time = time.time()
         while self.elephant.get_state() == common.S_RECORDING or self.elephant.get_state() == common.S_AUTO_RECORDING:
+            start_time = time.time()
             while True:
                 msg = inPort.poll()
                 
                 if msg is None:
-                    time.sleep(.001) 
+                    time.sleep(.001)
+                    if self.midi_pause_elapsed(start_time):
+                         self.elephant.raise_event(common.E_MIDI_PAUSED)
+                         return
                     continue
                 
                 outPort.send(msg)
-                #print(msg)
+                #print(f"Sent: {msg}")
                 
                 if not common.is_channel_message(msg) and self.midi_pause_elapsed(start_time):
                     self.elephant.raise_event(common.E_MIDI_PAUSED)
@@ -63,9 +69,10 @@ class RecordingService(threading.Thread):
             intTime = int(mido.second2tick(delta_time, ticksPerBeat, tempo))
             last_time = current_time
             msg.time = intTime
-            #print(f"Appending {msg}")
+            #print(f"Appended: {msg}")
             track.append(msg)
-            start_time = time.time()
             
+        self.elephant.close_output_port()
+        self.elephant.close_input_port()
         print(f"{self.name} exiting...")
         

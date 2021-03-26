@@ -1,3 +1,11 @@
+import os
+import glob
+import threading
+import ElephantCommon
+import Elephant
+import time
+import pdb
+
 # https://www.programcreek.com/python/example/90175/mido.MidiFile
 #
 # This class is responsible for managing midi files for
@@ -34,3 +42,86 @@
 #
 #
 
+class MidiFileManager(threading.Thread):
+    def __init__(self, name="MidiFileManager", elephant=None):
+           # Call the Thread class's init function
+           threading.Thread.__init__(self)
+           self.elephant = elephant
+           self.name = name
+           
+           self.current_file_index = 0
+           self.last_file_index = 0
+           self.current_list = []
+     
+    def refresh(self):
+        self.current_list = sorted(glob.glob(f"{Elephant.midi_base_directory}/*.mid"), reverse=False)
+        print(f"Base: {Elephant.midi_base_directory}")
+        if len(self.current_list) > 0:
+            # point at last element
+            self.current_file_index = len(self.current_list) -1
+            self.last_file_index = len(self.current_list) -1
+        else:
+            self.current_file_index = 0
+            self.last_file_index = 0
+            
+               
+    def get_current_file(self, refresh=False):
+        if refresh:
+            self.refresh()
+        
+        if len(self.current_list) == 0:
+            return None
+        
+        if len(self.current_list) - 1 >= self.current_file_index:
+            file_to_return = self.current_list[self.current_file_index]
+            Elephant.display(file_to_return.split('/')[3].split(".")[0], 1)
+            return file_to_return
+        
+        return None
+            
+    def get_next_file(self, refresh=False):
+        if refresh:
+            self.refresh()
+            
+        if len(self.current_list) == 0:
+            return None
+        
+        if self.current_file_index >= 0:
+            next_file_index = self.current_file_index + 1
+            if next_file_index <= self.last_file_index:
+                self.current_file_index = next_file_index
+                return self.get_current_file()
+            
+        return None
+    
+    def get_previous_file(self, refresh=False):
+        if refresh:
+            self.refresh()
+            
+        if self.current_file_index > 0:
+            previous_file_index = self.current_file_index - 1
+            self.current_file_index = previous_file_index
+            return self.get_current_file()
+            
+        
+        return None
+    
+    def get_file_count(self, refresh=False):
+        if refresh:
+            self.refresh()
+        if self.current_list is None:
+            return 0
+        
+        return len(self.current_list)
+    
+    def run(self):
+        print(f"{self.name} is running...")
+        
+        self.refresh()
+        
+        while True:
+            time.sleep(100000)
+        
+        
+
+                    

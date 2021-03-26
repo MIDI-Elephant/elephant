@@ -17,24 +17,27 @@ class PlaybackService(threading.Thread):
     def run(self):
         print("PlaybackService started...")
         
-        if self.elephant.get_last_saved_file() is None:
-            Elephant.display("Nothing to play...")
+        midifile_path=self.elephant.filemanager.get_current_file()
+        if midifile_path is None:
             self.elephant.raise_event(common.E_NO_TRACK)
             return
         
         outPort=self.elephant.get_output_port()
-        midifile_path=f"{self.elephant.get_midi_base_directory()}/{self.elephant.get_last_saved_file()}"
         midifile = MidiFile(midifile_path)
-        Elephant.display(f"Playing {self.elephant.get_last_saved_file()}")
+        Elephant.display((midifile_path.split("/")[3]).split(".")[0])
+        while self.elephant.get_state() == common.S_PLAYING:
+            for msg in midifile.play():
+                if self.elephant.get_state() != common.S_PLAYING:
+                    break
+                if not msg.is_meta:
+                    time.sleep(msg.time)
+                    outPort.send(msg)
+                    #print(f"Played: {msg}")
+            self.elephant.raise_event(common.E_END_OF_TRACK)              
         
-        for msg in midifile.play():
-            if self.elephant.get_state() != common.S_PLAYING:
-                break
-            if not msg.is_meta:
-                time.sleep(msg.time)
-                outPort.send(msg)
-                            
         print("PlaybackService exiting...")
+        print(f"State={self.elephant.get_state()}")
+        self.elephant.close_output_port()
         self.elephant.raise_event(common.E_END_OF_TRACK)
         
         

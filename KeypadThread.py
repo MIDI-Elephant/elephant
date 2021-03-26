@@ -41,7 +41,7 @@ class KeypadThread(threading.Thread):
         return self.output_queue
     
     def is_held_char(self, charToCheck):
-     repeat_count = 0
+     repeat_count = 2
      repeat_wait = first_repeat_wait
      while True:
         try: 

@@ -22,27 +22,32 @@ import LEDManager
 import mido
 from mido import MidiFile
 from datetime import datetime
+import MidiFileManager
 
 AutoRecordEnabled=False
+Headless=False
 use_lcd = False
 use_gpio = False
 use_kmod = False
 
-try:
-    import i2clcd as LCD
-    use_lcd = True
-    lcd = LCD.i2clcd(i2c_bus=0, i2c_addr=0x27, lcd_width=20)
-    lcd.init()
-    lcd.set_backlight(True)
-except:
-    pass
+if Headless:
+    AutoRecordEnabled=True
+else:
+    try:
+        import i2clcd as LCD
+        use_lcd = True
+        lcd = LCD.i2clcd(i2c_bus=0, i2c_addr=0x27, lcd_width=20)
+        lcd.init()
+        lcd.set_backlight(True)
+    except:
+        pass
 
-try:
-    import OPi.GPIO as GPIO
-    use_gpio = True
-    import GPIOReadcharThread
-except:
-    pass
+    try:
+        import OPi.GPIO as GPIO
+        use_gpio = True
+        import GPIOReadcharThread
+    except:
+        pass
 
 try:
     import kmod
@@ -50,7 +55,7 @@ try:
     outPortName='f_midi'
     inPortNames=[
                     'Novation SL MkIII:Novation SL MkIII MIDI 1 24:0',
-                    'MIDI9/QRS PNOScan MIDI 1'
+                    'UM-ONE:UM-ONE MIDI 1 24:0', 'MIDI9/QRS PNOScan MIDI 1'
                 ]
     midi_base_directory= '/mnt/usb_share'
  
@@ -61,13 +66,14 @@ except:
 
     
 
-def lprint(text):
-    lcd.clear()
-    lcd.print_line(text, 0)
+def lprint(text, line=0):
+    if line == 0:
+        lcd.clear()
+    lcd.print_line(text, line)
 
-def display(text):
+def display(text, line=0):
     if use_lcd:
-        lprint(text)
+        lprint(text, line)
         print(text)
     else:
         print(text)
@@ -193,8 +199,10 @@ transitions = [
         # States from Stopped
         [ E_SKIP_BACK, S_STOPPED, S_SKIP_BACK_WHILE_STOPPED ],
         [ E_PREVIOUS_TRACK, S_SKIP_BACK_WHILE_STOPPED, S_STOPPED ],
+        [ E_NO_TRACK, S_SKIP_BACK_WHILE_STOPPED, S_STOPPED ],
         [ E_SKIP_FORWARD, S_STOPPED, S_SKIP_FORWARD_WHILE_STOPPED ],
         [ E_NEXT_TRACK, S_SKIP_FORWARD_WHILE_STOPPED, S_STOPPED ],
+        [ E_NO_TRACK, S_SKIP_FORWARD_WHILE_STOPPED, S_STOPPED ],
         [ E_SWITCH_MODE, S_STOPPED, S_MASS_STORAGE_MANAGEMENT],
         [ E_SWITCH_MODE_RELEASED, S_MASS_STORAGE_MANAGEMENT, S_MASS_STORAGE_MANAGEMENT],
         [ E_SWITCH_MODE, S_MASS_STORAGE_MANAGEMENT, S_STOPPED],
@@ -211,13 +219,17 @@ transitions = [
         
         [ E_SKIP_BACK, S_PLAYING, S_SKIP_BACK_WHILE_PLAYING ],
         [ E_PREVIOUS_TRACK, S_SKIP_BACK_WHILE_PLAYING, S_PLAYING ],
+        [ E_NO_TRACK, S_SKIP_BACK_WHILE_PLAYING, S_PLAYING ],
         [ E_SKIP_FORWARD, S_PLAYING, S_SKIP_FORWARD_WHILE_PLAYING ],
         [ E_NEXT_TRACK, S_SKIP_FORWARD_WHILE_PLAYING, S_PLAYING ],
+        [ E_NO_TRACK, S_SKIP_FORWARD_WHILE_PLAYING, S_PLAYING ],
         
         [ E_SKIP_BACK, S_PLAYING_PAUSED, S_SKIP_BACK_WHILE_PLAYING_PAUSED ],
         [ E_PREVIOUS_TRACK, S_SKIP_BACK_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
+        [ E_NO_TRACK, S_SKIP_BACK_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
         [ E_SKIP_FORWARD, S_PLAYING_PAUSED, S_SKIP_FORWARD_WHILE_PLAYING_PAUSED ],
         [ E_NEXT_TRACK, S_SKIP_FORWARD_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
+        [ E_NO_TRACK, S_SKIP_FORWARD_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
         
         [ E_SEEK_BACK, S_PLAYING, S_SEEKING_BACK ],
         [ E_SEEK_BACK_RELEASED, S_SEEKING_BACK, S_PLAYING],
@@ -262,6 +274,9 @@ class Elephant(threading.Thread):
        
        self.last_saved_file = None
        
+       self.filemanager = None
+       
+       
     def get_last_saved_file(self):
         return self.last_saved_file
     
@@ -285,11 +300,45 @@ class Elephant(threading.Thread):
     def get_state(self):
         return self.state
     
+    def close_input_port(self):
+        if not self.inputPort is None:
+            self.inputPort.close()
+            
+        self.inputPort = None
+    
+    def set_input_port(self, inputPort):
+        self.inputPort = inputPort
+        
     def get_input_port(self):
+        if self.inputPort is None:
+            for name in inPortNames:
+                try:
+                    self.inputPort = mido.open_input(name)
+                    display(f"Input: {name.split()[0]}")
+                    break
+                except Exception as e:
+                   pass
+               
         return self.inputPort
     
+    def set_output_port(self, outputPort):
+        self.outputPort = outputPort
+    
+    def close_output_port(self):
+        if not self.outputPort is None:
+            self.outputPort.panic()
+            self.outputPort.close()
+            
+        self.outputPort = None
+        
+    
     def get_output_port(self):
+        if self.outputPort is None:
+            self.outputPort = mido.open_output(outPortName)
+            display(f"Output: {outPortName.split()[0]}", 1)
+            
         return self.outputPort
+    
     
     def raise_event(self, event_name):
         try:
@@ -303,12 +352,17 @@ class Elephant(threading.Thread):
             return
         
         filename = f"{datetime.today().strftime('%Y-%m-%d-%H-%M-%S')}.mid"
-        display("Saving {filename}")
+        display("Saving:")
+        display(filename, 1)
         file_to_save=f"{midi_base_directory}/{filename}"
         print(f"File={file_to_save}")
         self.midifile.save(file_to_save) 
         self.last_saved_file = filename
         self.set_midi_file(None)
+        
+        self.close_input_port()
+        self.close_output_port()
+        self.filemanager.refresh()
         self.raise_event(E_RECORDING_SAVED)
             
     #####################################################        
@@ -417,54 +471,72 @@ class Elephant(threading.Thread):
     
     def e_skip_back_while_stopped(self, event_data): 
         print(event_data.transition)
-        display(self.state)
-        sleep(1)
-        self.raise_event(E_PREVIOUS_TRACK)
+        file = self.filemanager.get_previous_file()
+        
+        if file is not None:
+            self.raise_event(E_PREVIOUS_TRACK)
+        else:
+            self.raise_event(E_NO_TRACK)
+
 
     def x_skip_back_while_stopped(self, event_data): 
         pass
     
     def e_skip_back_while_playing(self, event_data): 
         print(event_data.transition)
-        display(self.state)
-        sleep(1)
-        self.raise_event(E_PREVIOUS_TRACK)
+        file = self.filemanager.get_previous_file()
+        
+        if file is not None:
+            self.raise_event(E_PREVIOUS_TRACK)
+        else:
+            self.raise_event(E_NO_TRACK)
 
     def x_skip_back_while_playing(self, event_data): 
         pass
 
     def e_skip_back_while_playing_paused(self, event_data): 
         print(event_data.transition)
-        display(self.state)
-        sleep(1)
-        self.raise_event(E_PREVIOUS_TRACK)
+        file = self.filemanager.get_previous_file()
+        
+        if file is not None:
+            self.raise_event(E_PREVIOUS_TRACK)
+        else:
+            self.raise_event(E_NO_TRACK)
 
     def x_skip_back_while_playing_paused(self, event_data): 
         pass
     
     def e_skip_forward_while_stopped(self, event_data): 
         print(event_data.transition)
-        display(self.state)
-        sleep(1)
-        self.raise_event(E_NEXT_TRACK)
+        file = self.filemanager.get_next_file()
+        
+        if file is not None:
+            self.raise_event(E_NEXT_TRACK)
+        else:
+            self.raise_event(E_NO_TRACK)
 
     def x_skip_forward_while_stopped(self, event_data): 
         pass
     
     def e_skip_forward_while_playing(self, event_data): 
         print(event_data.transition)
-        display(self.state)
-        sleep(1)
-        self.raise_event(E_NEXT_TRACK)
+        file = self.filemanager.get_next_file()
+        if file is not None:
+            self.raise_event(E_NEXT_TRACK)
+        else:
+            self.raise_event(E_NO_TRACK)
 
     def x_skip_forward_while_playing(self, event_data): 
        pass
     
     def e_skip_forward_while_playing_paused(self, event_data): 
         print(event_data.transition)
-        display(self.state)
-        sleep(1)
-        self.raise_event(E_NEXT_TRACK)
+        self.filemanager.get_next_file()
+        file = self.raise_event(E_NEXT_TRACK)
+        if file is not None:
+            self.raise_event(E_NEXT_TRACK)
+        else:
+            self.raise_event(E_NO_TRACK)
 
     def x_skip_forward_while_playing_paused(self, event_data): 
        pass
@@ -510,8 +582,14 @@ class Elephant(threading.Thread):
                                    char_queue=characterQueue,
                                    state_machine=self,
                                    event_queue=self.event_queue)
-        #readchar_thread.start()
         event_thread.start()
+        
+        self.filemanager = MidiFileManager.MidiFileManager(name="MidiFileManager", 
+                                                           elephant=self)
+        self.filemanager.start()
+        
+        display(f"Files: {self.filemanager.get_file_count()}")
+        time.sleep(2)
     
     
     def run(self):
@@ -521,16 +599,6 @@ class Elephant(threading.Thread):
         ## Cleanup - exception handling etc.
         # Open up the input and output ports.  It's OK to run
         # without an output port but we must have an input port.
-        for name in inPortNames:
-            try:
-                self.inputPort = mido.open_input(name)
-                display(f"Using {name.split()[0]}")
-                break
-            except Exception as e:
-               pass
-                
-        print(f"Opening output {outPortName}")
-        self.outputPort = mido.open_output(outPortName)
         
         if AutoRecordEnabled:
             self.raise_event(E_AUTO_RECORD_BUTTON)

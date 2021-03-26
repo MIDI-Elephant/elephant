@@ -15,13 +15,20 @@ class MIDIEventService(threading.Thread):
         inPort=self.elephant.get_input_port()
         while self.elephant.get_state() == common.S_WAITING_FOR_MIDI:
                 msg = inPort.poll()
+                
                 if msg is None:
                     time.sleep(.001)
                     continue
+                
                 if not common.is_channel_message(msg):
                     continue
                 
+                if msg.type == 'control_change' and msg.control == 11:
+                    print(f"Filtering: {msg}")
+                    continue
+                
                 self.elephant.set_trigger_message(msg)
+                print(f"Trigger message: {msg}")
                 self.elephant.raise_event(common.E_MIDI_DETECTED)
                 break
                 
