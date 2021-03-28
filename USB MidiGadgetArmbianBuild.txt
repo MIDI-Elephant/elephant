@@ -1,0 +1,437 @@
+Get source for kernel 20.08.0
+
+git clone --depth 1 https://github.com/armbian/build
+
+
+# build kernel from master
+./compile.sh
+'Full OS Image for flashing'
+'Do not change the kernel configuration'
+'orangepizero' - I have the Allwinner H2+ processor. Yours may vary.
+'current'
+'focal'
+'Standard image with console interface'
+
+# Modify source code for f_midi.c to change names that appear for port listing.
+
+# Change compile.sh properties:
+KERNEL_ONLY="yes"             
+SOURCE_COMPILE="yes"    
+KERNEL_CONFIGURE="no" 
+KERNEL_CLEAN="no"  
+FORCE_CHECKOUT="no"                   
+
+
+
+After install:
+
+vi /etc/hostname
+# change hostname to elephant
+
+##
+## Set up Wifi
+armbian-config->Network->WiFi
+Choose network and enter password.
+Done!
+		
+
+# Install bluetooth support
+armbian-config->Network->BT Support
+reboot now
+service bluetooth start
+bluetoothctl
+
+
+
+apt update
+apt upgrade
+
+# Python debugger: python3 -m pdb foo.py
+
+
+hostname elephant
+
+apt --assume-yes install python3
+apt --assume-yes install python3-pip
+pip3 install mido
+apt --assume-yes install libasound2-dev
+apt --assume-yes install python3.8-dev
+apt --assume-yes install libjack0
+apt --assume-yes install libjack-dev
+pip3 install python-rtmidi
+
+
+
+# vncserver support - only for development device
+
+https://blog.robberg.net/orange-pi-zero/
+apt-get install xfce4 xfce4-goodies
+// Install missing fonts for the vncserver
+apt-get install  xfonts-base
+// Install the missing Icons for the Desktop
+apt-get install gnome-icon-theme tango-icon-theme
+// Install a VNC server to get remote access
+apt-get install tightvncserver
+apt-get install firefox-esr
+apt install x11-xserver-utils
+
+mDNS how to advertise an IP address for the OrangePi '.local'
+
+apt update --fix-missing
+apt --assume-yes install avahi-daemon
+apt --assume-yes install avahi-discover
+apt --assume-yes install libnss-mdns
+systemctl status avahi-daemon
+avahi-discover 
+
+
+# install i2c tools for development
+apt --assume-yes install i2c-tools
+pip3 install smbus
+pip3 install i2clcd
+
+# In armbia-config, enable i2c
+i2c0?
+
+
+# Docs for i2clcd
+https://pypi.org/project/i2clcd/
+https://github.com/WuSiYu/python-i2clcd
+
+## Test program for above:
+#!/usr/bin/python3
+import i2clcd
+
+lcd = i2clcd.i2clcd(i2c_bus=0, i2c_addr=0x27, lcd_width=16)
+lcd.init()
+
+# fill a line by the text
+lcd.print_line('hello', line=0)
+lcd.print_line('world!', line=1, align='RIGHT')
+
+# print text at the current cursor position
+lcd.move_cursor(1, 0)
+lcd.print('the')
+
+# custom character
+char_celsius = (0x10, 0x06, 0x09, 0x08, 0x08, 0x09, 0x06, 0x00)
+lcd.write_CGRAM(char_celsius, 0)
+lcd.move_cursor(0, 6)
+lcd.print(b'CGRAM: ' + i2clcd.CGRAM_CHR[0])
+
+
+
+# Install rpi library for use with GPIO pins
+pip3 install OrangePi.GPIO
+
+#docs for above
+https://github.com/Jeremie-C/OrangePi.GPIO
+# More docs
+https://opi-gpio.readthedocs.io/en/latest/api-documentation.html
+
+# OrangePi PI GPIO pinout
+https://www.seeedstudio.com/blog/2020/02/19/how-to-use-raspberry-pi-gpio-pins-python-tutorial/
+
+# How to set up switches/LED
+https://www.instructables.com/Creating-Switch-Circuits-With-Your-Raspberry-Pis-G/
+
+## Test program for OPi.GPIO
+
+#!/usr/bin/python3
+import OPi.GPIO as GPIO
+import i2clcd as LCD
+from time import sleep
+
+lcd = LCD.i2clcd(i2c_bus=0, i2c_addr=0x27, lcd_width=16)
+lcd.init()
+
+# fill a line by the text
+lcd.clear()
+lcd.print_line('GPIO TEST', line=0)
+sleep(5)
+
+STOP_BUTTON=11
+PLAY_BUTTON=13
+RECORD_ENABLE_BUTTON=15
+LOOP_BUTTON=19
+SKIP_BACK_BUTTON=21
+SKIP_FORWARD_BUTTON=23
+RECORD_STATUS_LED=26
+
+GPIO.setboard(GPIO.ZERO)        # Orange Pi Zero board
+GPIO.setmode(GPIO.BOARD)        # set up BOARD GPIO numbering
+GPIO.setup(STOP_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_OFF)
+GPIO.setup(PLAY_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_OFF)
+GPIO.setup(RECORD_ENABLE_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_OFF)
+GPIO.setup(LOOP_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_OFF)
+GPIO.setup(SKIP_BACK_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_OFF)
+GPIO.setup(SKIP_FORWARD_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_OFF)
+#GPIO.setup(11, GPIO.OUT)        # set pin 11 as an output (LED)
+
+try:
+    while True:                 # this will carry on until you hit CTRL+C
+        lcd.clear()
+        if GPIO.input(STOP_BUTTON):
+            lcd.print_line("STOP", line=0)
+        elif GPIO.input(PLAY_BUTTON):
+            lcd.print_line("PLAY", line=0)
+        elif GPIO.input(RECORD_ENABLE_BUTTON):
+            lcd.print_line("RECORD", line=0)
+        elif GPIO.input(LOOP_BUTTON):
+            lcd.print_line("LOOP", line=0)
+        elif GPIO.input(SKIP_BACK_BUTTON):
+            lcd.print_line("SKIP BACK", line=0)
+        elif GPIO.input(SKIP_FORWARD_BUTTON):
+            lcd.print_line("SKIP FORWARD", line=0)
+        else:
+            lcd.print_line("WAITING....", line = 0)
+        sleep(0.1)              # wait 0.1 seconds
+
+finally:                        # this block will run no matter how the try block exits
+    print("Finally")
+    GPIO.cleanup()              # clean up after yourself
+
+
+# Install dart SDK - server backend for app
+
+
+
+https://en.wikipedia.org/wiki/Multicast_DNS
+
+netstat -natp | grep -i Xtightvnc
+Connect via vncclient on port 5901
+
+
+#!/bin/bash
+
+# Set the USB driver to dwc2
+echo "dtoverlay=dwc2" | sudo tee -a /boot/config.txt
+
+# Enable the dwc2 driver
+echo "dwc2" | sudo tee -a /etc/modules
+
+
+# Enable the libcomposite driver
+echo "libcomposite" | sudo tee -a /etc/modules
+
+# Enable the MIDI gadget
+
+echo "g_midi" | sudo tee -a /etc/modules
+
+# Create the script to create the config file.
+
+cat <<EOT > /usr/bin/midi_over_usb
+cd /sys/kernel/config/usb_gadget/ 
+echo 0x1235 > idVendor # Focusrite
+echo 0x000b > idProduct # Multifunction Composite Gadget 
+echo 0x0100 > bcdDevice # v1.0.0 
+echo 0x0200 > bcdUSB # USB2 
+mkdir -p strings/0x409 
+echo "fedcba9876543210" > strings/0x409/serialnumber 
+echo "FullCircle" > strings/0x409/manufacturer 
+echo "Elephant" > strings/0x409/product 
+ls /sys/class/udc > UDC
+EOT
+
+# Make it executable
+chmod 755 /usr/bin/midi_over_usb
+
+# reference the script in rc.local
+vi /etc/rc.local
+
+#Add the following line before “exit0”
+/usr/bin/midi_over_usb
+
+# Add configuration of device params to a file in /etc/modprobe.d
+cd /etc/modprobe.d
+vi g_midi.conf
+
+options g_midi iProduct=Elephant
+options g_midi idVendor=1235
+options g_midi iManufacturer=Ganesha
+
+
+reboot now
+
+
+Use the following to test the device once it's recognized on the host that the
+orangepi is plugged into:
+
+#!/usr/bin/python3
+
+import mido
+
+outPortName='f_midi'
+inPortName='Novation SL MkIII:Novation SL MkIII MIDI 1 20:0'
+
+
+inPort=mido.open_input(inPortName)
+outPort=mido.open_output(outPortName)
+
+while True:
+    for msg in inPort.iter_pending():
+        outPort.send(msg)
+
+
+apt install automake
+git clone https://github.com/thestk/rtmidi.git
+cd rtmidi
+./autogen.sh
+make
+
+
+###############################################
+## Software Development
+##
+## State machine for Elephant
+###############################################
+pip3 install Cython
+pip3 install transitions
+pip3 install readchar
+pip3 install simpleaudio
+
+https://github.com/pytransitions/transitions#quickstart
+
+############################################
+# Setting up bluetooth??
+https://forum.armbian.com/topic/8394-bluetooth-on-orange-pizero-plus/
+
+
+# Setting up system service
+
+cd /etc/systemd/system
+vim elephant.service
+
+# Service definition
+[Unit]
+Description=The Elephant MIDI Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /root/startElephant.sh
+TimeoutStartSec=0
+
+[Install]
+WantedBy=default.target
+
+
+systemctl daemon-reload 
+systemctl enable elephant.service
+systemctl start elephant.service
+
+#!/bin/bash
+# /root/startElephant.sh
+d=$(date +%Y-%m-%d-%s)
+echo "$d" >> ~/"$d".log
+python3 /root/Elephant.py
+exit 0
+
+
+###########################################
+Setting up Orange Pi 2G-IOT
+
+USB to ttl-serial adapter for Mac:
+https://www.amazon.de/gp/product/B07BBPX8B8/ref=ppx_yo_dt_b_asin_title_o01_s00?ie=UTF8&psc=1
+
+Follow instructions here:
+
+https://hackersgrid.com/2017/05/setting-up-orange-pi-2g-iot-os.html
+
+After first boot, purge alsa-utils or it won't boot again...
+
+apt purge alsa-utils
+
+# Update apt repo source  list or it will be slow.....!!!
+https://askubuntu.com/questions/37753/how-can-i-get-apt-to-use-a-mirror-close-to-me-or-choose-a-faster-mirror
+
+Disable wireless network power control
+
+
+# Set up Elephant as a USB mass-storage device.
+# Using OTG port
+This article shows details using Raspberry PI zero:
+https://magpi.raspberrypi.org/articles/pi-zero-w-smart-usb-flash-drive
+
+STEP-07: Create a container file
+To enable mass storage device mode, we need to create a large file to act as the storage medium on the SD card. This file will emulate the USB flash drive that the TV sees.
+
+The command below will create an empty 2GB binary file (change the count=2048 parameter if you want a different size). Please note that this will be limited by the available free space on your SD card (check the Avail column in df -h), and it may take a few minutes to complete the setup. 
+
+dd bs=1M if=/dev/mmcblk0p1 of=/elephant.bin count=8192
+mkdosfs /elephant.bin -F 32 -I -n Elephant
+
+
+
+We now need to format the file as a FAT32 file system so that the TV can understand it. Enter the command below:
+
+mkdosfs /elephant.bin -F 32 -I -n Elephant
+
+STEP-08: Mount the container file
+Now let’s mount the container file locally so we can download some test files. First, create a folder on which we can mount the file system:
+
+mkdir /mnt/usb_share
+
+Now let’s add this to fstab, the configuration file that records our available disk partitions:
+
+sudo nano /etc/fstab
+
+Append the line below to the end of the file:
+
+/piusb.bin /mnt/usb_share vfat users,umask=000 0 2
+
+Press CTRL+O followed by Enter to save, and then CTRL+X to quit.
+The line we added to fstab allows the USB file system to be error-checked and mounted automatically at boot time. Instead of rebooting, we can manually reload fstab with the command below:
+
+sudo mount -a
+
+STEP-10: Test mass storage device mode
+Now comes the moment of truth. Let’s see whether the TV is going to be friends with the Pi Zero W. The command below will enable USB mass storage device mode, and the TV should pop up a dialogue box. If it doesn’t, you may need to use the Input or Source button on the TV remote to select the USB device.
+
+modprobe g_mass_storage file=/elephant.bin stall=0 ro=1
+
+The TV should provide a file browsing interface. Locate the Big Buck Bunny file and hit Play.
+
+Once you’re satisfied that all is well, try a dismount:
+
+modprobe -r g_mass_storage
+
+
+
+##########################################################
+# Advertise tcp/ip port for midi machine control (MMC) via avahi on Linux
+##########################################################
+
+cd /etc/avahi/services
+vi elephant.service
+<?xml version="1.0" standalone='no'?><!--*-nxml-*-->
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+<name replace-wildcards="yes">%h ElephantMMC</name>
+<service>
+<type>_midi._tcp</type>
+<port>8001</port>
+</service>
+</service-group>
+
+service avahi-daemon restart
+
+apt install avahi-utils
+
+
+In mido /usr/local/lib/python3.8/dist-packages/mido/sockets.py update line 107 to read:
+    
+if len(byte) == 0:
+
+See fux report here:
+https://github.com/mido/mido/pull/291
+
+
+Can't connect iphone to mido-based server. May need to have rtpmidid - rtpmidi daemon - running
+
+
+https://github.com/davidmoreno/rtpmidid
+
+
+
+
