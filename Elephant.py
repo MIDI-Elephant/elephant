@@ -197,11 +197,11 @@ states = [
 transitions = [
         # States from Stopped
         [ E_SKIP_BACK, S_STOPPED, S_SKIP_BACK_WHILE_STOPPED ],
-        [ E_PREVIOUS_TRACK, S_SKIP_BACK_WHILE_STOPPED, S_STOPPED ],
-        [ E_NO_TRACK, S_SKIP_BACK_WHILE_STOPPED, S_STOPPED ],
+        [ E_PREVIOUS_FILE, S_SKIP_BACK_WHILE_STOPPED, S_STOPPED ],
+        [ E_NO_FILE, S_SKIP_BACK_WHILE_STOPPED, S_STOPPED ],
         [ E_SKIP_FORWARD, S_STOPPED, S_SKIP_FORWARD_WHILE_STOPPED ],
-        [ E_NEXT_TRACK, S_SKIP_FORWARD_WHILE_STOPPED, S_STOPPED ],
-        [ E_NO_TRACK, S_SKIP_FORWARD_WHILE_STOPPED, S_STOPPED ],
+        [ E_NEXT_FILE, S_SKIP_FORWARD_WHILE_STOPPED, S_STOPPED ],
+        [ E_NO_FILE, S_SKIP_FORWARD_WHILE_STOPPED, S_STOPPED ],
         [ E_SWITCH_MODE, S_STOPPED, S_MASS_STORAGE_MANAGEMENT],
         [ E_SWITCH_MODE_RELEASED, S_MASS_STORAGE_MANAGEMENT, S_MASS_STORAGE_MANAGEMENT],
         [ E_SWITCH_MODE, S_MASS_STORAGE_MANAGEMENT, S_STOPPED],
@@ -211,24 +211,26 @@ transitions = [
         [ E_PLAY_PAUSE_BUTTON, S_STOPPED, S_PLAYING ],
         [ E_PLAY_PAUSE_BUTTON, S_PLAYING, S_PLAYING_PAUSED ],
         [ E_PLAY_PAUSE_BUTTON, S_PLAYING_PAUSED, S_PLAYING ],
-        [ E_END_OF_TRACK, S_PLAYING, S_STOPPED ],
-        [ E_NO_TRACK, S_PLAYING, S_STOPPED ],
+        # Autoplay [ E_END_OF_FILE, S_PLAYING, S_SKIP_FORWARD_WHILE_PLAYING ],
+        [ E_END_OF_FILE, S_PLAYING, S_STOPPED ],
+        [ E_NO_FILE, S_SKIP_FORWARD_WHILE_PLAYING, S_STOPPED ],
+        [ E_NO_FILE, S_PLAYING, S_STOPPED ],
         [ E_STOP_BUTTON, S_PLAYING, S_STOPPED ],
         [ E_STOP_BUTTON, S_PLAYING_PAUSED, S_STOPPED ],
         
         [ E_SKIP_BACK, S_PLAYING, S_SKIP_BACK_WHILE_PLAYING ],
-        [ E_PREVIOUS_TRACK, S_SKIP_BACK_WHILE_PLAYING, S_PLAYING ],
-        [ E_NO_TRACK, S_SKIP_BACK_WHILE_PLAYING, S_PLAYING ],
+        [ E_PREVIOUS_FILE, S_SKIP_BACK_WHILE_PLAYING, S_PLAYING ],
+        [ E_NO_FILE, S_SKIP_BACK_WHILE_PLAYING, S_PLAYING ],
         [ E_SKIP_FORWARD, S_PLAYING, S_SKIP_FORWARD_WHILE_PLAYING ],
-        [ E_NEXT_TRACK, S_SKIP_FORWARD_WHILE_PLAYING, S_PLAYING ],
-        [ E_NO_TRACK, S_SKIP_FORWARD_WHILE_PLAYING, S_PLAYING ],
+        [ E_NEXT_FILE, S_SKIP_FORWARD_WHILE_PLAYING, S_PLAYING ],
+        [ E_NO_FILE, S_SKIP_FORWARD_WHILE_PLAYING, S_PLAYING ],
         
         [ E_SKIP_BACK, S_PLAYING_PAUSED, S_SKIP_BACK_WHILE_PLAYING_PAUSED ],
-        [ E_PREVIOUS_TRACK, S_SKIP_BACK_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
-        [ E_NO_TRACK, S_SKIP_BACK_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
+        [ E_PREVIOUS_FILE, S_SKIP_BACK_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
+        [ E_NO_FILE, S_SKIP_BACK_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
         [ E_SKIP_FORWARD, S_PLAYING_PAUSED, S_SKIP_FORWARD_WHILE_PLAYING_PAUSED ],
-        [ E_NEXT_TRACK, S_SKIP_FORWARD_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
-        [ E_NO_TRACK, S_SKIP_FORWARD_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
+        [ E_NEXT_FILE, S_SKIP_FORWARD_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
+        [ E_NO_FILE, S_SKIP_FORWARD_WHILE_PLAYING_PAUSED, S_PLAYING_PAUSED ],
         
         [ E_SEEK_BACK, S_PLAYING, S_SEEKING_BACK ],
         [ E_SEEK_BACK_RELEASED, S_SEEKING_BACK, S_PLAYING],
@@ -277,17 +279,27 @@ class Elephant(threading.Thread):
        self.display_service = None
        
      
-    def display_status(self):
+    def display_status(self, pause=0):
         status_text = []
         status_text.append(self.state)
-        status_text.append(self.filemanager.get_current_file())
+        
+        if self.state not in [S_RECORDING, S_AUTO_RECORDING, S_WAITING_FOR_MIDI]:
+            file_tuple = self.filemanager.get_current_file_tuple()
+            if file_tuple != None:
+                seconds = "{:.1f}".format(file_tuple[1])
+                status_text.append(f"{file_tuple[0]} {seconds}s")
+            else:
+                status_text.append("No Recordings")
+        else:
+            status_text.append("*********")
+            
         status_text.append("")
-        self.display_service.display_message(status_text)    
+        self.display_service.display_message(status_text, pause=pause)    
     
     def display_exception(self, exception):
         status_text = []
         status_text.append(self.state)
-        status_text.append(self.filemanager.get_current_file())
+        status_text.append(self.filemanager.get_current_filename())
         status_text.append(exception)
         self.display_service.display_message(status_text, clear, pause)    
         
@@ -363,7 +375,7 @@ class Elephant(threading.Thread):
             return
         
         try:
-            filename = f"{datetime.today().strftime('%Y-%m-%d-%H-%M-%S')}.mid"
+            filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}.mid"
             file_to_save=f"{midi_base_directory}/{filename}"
             print(f"File={file_to_save}")
             self.midifile.save(file_to_save) 
@@ -466,6 +478,7 @@ class Elephant(threading.Thread):
         pass
 
     def e_stopped(self, event_data) :
+        print(event_data.transition)
         if self.led_manager != None:
             self.led_manager.led_off()
         load_kernel_module('g_midi')
@@ -474,12 +487,12 @@ class Elephant(threading.Thread):
         pass
     
     def e_skip_back_while_stopped(self, event_data): 
-        file = self.filemanager.get_previous_file()
-        
+        file = self.filemanager.get_previous_filename()
         if file is not None:
-            self.raise_event(E_PREVIOUS_TRACK)
+            self.raise_event(E_PREVIOUS_FILE)
         else:
-            self.raise_event(E_NO_TRACK)
+            self.raise_event(E_NO_FILE)
+        
 
 
     def x_skip_back_while_stopped(self, event_data): 
@@ -487,59 +500,86 @@ class Elephant(threading.Thread):
     
     def e_skip_back_while_playing(self, event_data): 
         #print(event_data.transition)
-        file = self.filemanager.get_previous_file()
+        file = self.filemanager.get_previous_filename()
+        
+        # Sleep so that the user knows that it happened..
+        time.sleep(.75)
         
         if file is not None:
-            self.raise_event(E_PREVIOUS_TRACK)
+            self.raise_event(E_PREVIOUS_FILE)
         else:
-            self.raise_event(E_NO_TRACK)
+            self.raise_event(E_NO_FILE)
+            
+       
 
     def x_skip_back_while_playing(self, event_data): 
         pass
 
     def e_skip_back_while_playing_paused(self, event_data): 
         #print(event_data.transition)
-        file = self.filemanager.get_previous_file()
+        file = self.filemanager.get_previous_filename()
+        
+        # Sleep so that the user knows that it happened..
+        time.sleep(.75)
         
         if file is not None:
-            self.raise_event(E_PREVIOUS_TRACK)
+            self.raise_event(E_PREVIOUS_FILE)
         else:
-            self.raise_event(E_NO_TRACK)
+            self.raise_event(E_NO_FILE)
+            
 
     def x_skip_back_while_playing_paused(self, event_data): 
         pass
     
     def e_skip_forward_while_stopped(self, event_data): 
         #print(event_data.transition)
-        file = self.filemanager.get_next_file()
+        file = self.filemanager.get_next_filename()
+        
+        # Sleep so that the user knows that it happened..
+        time.sleep(.75)
         
         if file is not None:
-            self.raise_event(E_NEXT_TRACK)
+            self.raise_event(E_NEXT_FILE)
         else:
-            self.raise_event(E_NO_TRACK)
+            self.raise_event(E_NO_FILE)
+            
+
 
     def x_skip_forward_while_stopped(self, event_data): 
         pass
     
     def e_skip_forward_while_playing(self, event_data): 
         #print(event_data.transition)
-        file = self.filemanager.get_next_file()
+        file = self.filemanager.get_next_filename()
+        
+        # Sleep so that the user knows that it happened..
+        time.sleep(.75)
+        
         if file is not None:
-            self.raise_event(E_NEXT_TRACK)
+            self.raise_event(E_NEXT_FILE)
         else:
-            self.raise_event(E_NO_TRACK)
+            self.raise_event(E_NO_FILE)
+        
+        
+            
 
     def x_skip_forward_while_playing(self, event_data): 
        pass
     
     def e_skip_forward_while_playing_paused(self, event_data): 
         #print(event_data.transition)
-        self.filemanager.get_next_file()
-        file = self.raise_event(E_NEXT_TRACK)
+        self.filemanager.get_next_filename()
+        file = self.raise_event(E_NEXT_FILE)
+        
+        
+        # Sleep so that the user knows that it happened..
+        time.sleep(.75)
+        
         if file is not None:
-            self.raise_event(E_NEXT_TRACK)
+            self.raise_event(E_NEXT_FILE)
         else:
-            self.raise_event(E_NO_TRACK)
+            self.raise_event(E_NO_FILE)
+            
 
     def x_skip_forward_while_playing_paused(self, event_data): 
        pass
@@ -590,12 +630,13 @@ class Elephant(threading.Thread):
         
         self.filemanager = MidiFileManager.MidiFileManager(name="MidiFileManager", 
                                                            elephant=self)
-        self.filemanager.start()
         self.filemanager.refresh()
     
     
     def run(self):
         self.setup_state_machine()
+        
+        self.display_status()
 
         ## Cleanup - exception handling etc.
         # Open up the input and output ports.  It's OK to run
@@ -611,8 +652,7 @@ class Elephant(threading.Thread):
                 try:
                     print(f"Executing trigger method {trigger_method}")
                     getattr(self.state_machine, trigger_method)()
-                    #pdb.set_trace()
-                    self.display_status()
+                    self.display_status(pause=.75)
                 except Exception as exception:
                     print(exception)
             return

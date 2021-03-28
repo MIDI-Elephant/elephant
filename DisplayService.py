@@ -27,7 +27,8 @@ class DisplayService(threading.Thread):
        
   
     def camel_case_split(self, str):
-        return re.sub(r'((?<=[a-z])[A-Z]|(?<!\A)[A-Z](?=[a-z]))', r' \1', str)
+        string_to_split = str.split(" ")[0]
+        return re.sub(r'((?<=[a-z])[A-Z]|(?<!\A)[A-Z](?=[a-z]))', r' \1', string_to_split)
     
     def lprint(self, text, line):
             lcd.print_line(text, line)

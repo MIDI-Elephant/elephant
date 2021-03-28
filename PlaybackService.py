@@ -17,13 +17,14 @@ class PlaybackService(threading.Thread):
     def run(self):
         print("PlaybackService started...")
         
-        midifile_path=self.elephant.filemanager.get_full_path(self.elephant.filemanager.get_current_file())
+        midifile_path=self.elephant.filemanager.get_current_filename(full_path=True)
         if midifile_path is None:
-            self.elephant.raise_event(common.E_NO_TRACK)
+            self.elephant.raise_event(common.E_NO_FILE)
             return
         
         outPort=self.elephant.get_output_port()
         midifile = MidiFile(midifile_path)
+        length = midifile.length
         
         for msg in midifile.play():
             if self.elephant.get_state() != common.S_PLAYING:
@@ -34,7 +35,7 @@ class PlaybackService(threading.Thread):
                 #print(f"Played: {msg}")
          
         self.elephant.close_output_port() 
-        self.elephant.raise_event(common.E_END_OF_TRACK)
+        self.elephant.raise_event(common.E_END_OF_FILE)
         print("PlaybackService exiting...")
         print(f"State={self.elephant.get_state()}")
        

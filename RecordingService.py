@@ -69,7 +69,7 @@ class RecordingService(threading.Thread):
             intTime = int(mido.second2tick(delta_time, ticksPerBeat, tempo))
             last_time = current_time
             msg.time = intTime
-            #print(f"Appended: {msg}")
+            print(f"Appended: {msg}")
             track.append(msg)
             
         self.elephant.close_output_port()

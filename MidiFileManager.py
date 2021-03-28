@@ -1,10 +1,11 @@
 import os
 import glob
-import threading
-import ElephantCommon
+from ElephantCommon import *
 import Elephant
 import time
 import pdb
+import traceback
+from mido import MidiFile
 
 # https://www.programcreek.com/python/example/90175/mido.MidiFile
 #
@@ -42,23 +43,40 @@ import pdb
 #
 #
 
-class MidiFileManager(threading.Thread):
+class MidiFileManager():
     def __init__(self, name="MidiFileManager", elephant=None):
-           # Call the Thread class's init function
-           threading.Thread.__init__(self)
            self.elephant = elephant
            self.name = name
            
            self.current_file_index = 0
            self.last_file_index = 0
            self.current_list = []
+           self.current_tuples = []
      
     def get_full_path(self, filename):
         return f"{Elephant.midi_base_directory}/{filename}.mid"
         
     def refresh(self):
+        self.current_list = []
+        self.current_tuples = []
+        glob_list = glob.glob(f"{Elephant.midi_base_directory}/*.mid")
+        
+        print(f"glob_list={glob_list}")
+        
         self.current_list = sorted(glob.glob(f"{Elephant.midi_base_directory}/*.mid"), reverse=False)
-        print(f"Base: {Elephant.midi_base_directory}")
+        
+        print(self.current_list)
+        
+        for midifile_path in self.current_list:
+            try:
+                midifile = MidiFile(midifile_path)
+                new_file_tuple = tuple((midifile_path, midifile.length))
+                print(f"Appending: {new_file_tuple}")
+                self.current_tuples.append(new_file_tuple)
+            except Exception as e:
+                print(f"Exception opening {midifile_path}: {e}")
+        
+        
         if len(self.current_list) > 0:
             # point at last element
             self.current_file_index = len(self.current_list) -1
@@ -66,8 +84,26 @@ class MidiFileManager(threading.Thread):
         else:
             self.current_file_index = 0
             self.last_file_index = 0  
-               
-    def get_current_file(self, refresh=False):
+    
+    def get_current_file_tuple(self, refresh=False, full_path=False):
+        if refresh:
+            self.refresh()
+             
+        if len(self.current_list) == 0:
+            return None
+        
+        if len(self.current_list) - 1 >= self.current_file_index:
+            tuple_to_return = self.current_tuples[self.current_file_index]
+            if full_path:
+                return tuple_to_return
+            else:
+                new_tuple = tuple((f"{tuple_to_return[0].split('/')[3].split('.')[0]}", tuple_to_return[1]))
+                return new_tuple
+        
+        return None
+    
+    
+    def get_current_filename(self, refresh=False, full_path=False):
         if refresh:
             self.refresh()
         
@@ -76,11 +112,14 @@ class MidiFileManager(threading.Thread):
         
         if len(self.current_list) - 1 >= self.current_file_index:
             file_to_return = self.current_list[self.current_file_index]
-            return f"{file_to_return.split('/')[3].split('.')[0]}"
+            if full_path:
+                return file_to_return
+            else:
+                return f"{file_to_return.split('/')[3].split('.')[0]}"
         
         return None
             
-    def get_next_file(self, refresh=False):
+    def get_next_filename(self, refresh=False, full_path=False):
         if refresh:
             self.refresh()
             
@@ -91,18 +130,18 @@ class MidiFileManager(threading.Thread):
             next_file_index = self.current_file_index + 1
             if next_file_index <= self.last_file_index:
                 self.current_file_index = next_file_index
-                return self.get_current_file()
-            
-        return None
+                return self.get_current_filename(full_path=full_path)
+          
+        return None      
     
-    def get_previous_file(self, refresh=False):
+    def get_previous_filename(self, refresh=False, full_path=False):
         if refresh:
             self.refresh()
             
         if self.current_file_index > 0:
             previous_file_index = self.current_file_index - 1
             self.current_file_index = previous_file_index
-            return self.get_current_file()
+            return self.get_current_filename(full_path=full_path)
             
         
         return None
@@ -115,14 +154,25 @@ class MidiFileManager(threading.Thread):
         
         return len(self.current_list)
     
-    def run(self):
-        print(f"{self.name} is running...")
+    
+    def save_recording(self, new_filename):
+        if self.midifile is None:
+            return
         
-        self.refresh()
-        
-        while True:
-            time.sleep(100000)
-        
-        
+        try:
+            filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}.mid"
+            file_to_save=f"{midi_base_directory}/{filename}"
+            print(f"File={file_to_save}")
+            self.midifile.save(file_to_save) 
+            self.last_saved_file = filename
+            self.set_midi_file(None)
+            
+            self.close_input_port()
+            self.close_output_port()
+            self.filemanager.refresh()
+            self.raise_event(E_RECORDING_SAVED)
+        except Exception as e:
+            self.display_exception(e)
+    
 
                     
