@@ -53,6 +53,9 @@ class MidiFileManager(threading.Thread):
            self.last_file_index = 0
            self.current_list = []
      
+    def get_full_path(self, filename):
+        return f"{Elephant.midi_base_directory}/{filename}.mid"
+        
     def refresh(self):
         self.current_list = sorted(glob.glob(f"{Elephant.midi_base_directory}/*.mid"), reverse=False)
         print(f"Base: {Elephant.midi_base_directory}")
@@ -62,8 +65,7 @@ class MidiFileManager(threading.Thread):
             self.last_file_index = len(self.current_list) -1
         else:
             self.current_file_index = 0
-            self.last_file_index = 0
-            
+            self.last_file_index = 0  
                
     def get_current_file(self, refresh=False):
         if refresh:
@@ -74,8 +76,7 @@ class MidiFileManager(threading.Thread):
         
         if len(self.current_list) - 1 >= self.current_file_index:
             file_to_return = self.current_list[self.current_file_index]
-            Elephant.display(f">{file_to_return.split('/')[3].split('.')[0]}", 1)
-            return file_to_return
+            return f"{file_to_return.split('/')[3].split('.')[0]}"
         
         return None
             

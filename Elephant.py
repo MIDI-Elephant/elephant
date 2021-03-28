@@ -23,12 +23,15 @@ import mido
 from mido import MidiFile
 from datetime import datetime
 import MidiFileManager
+import DisplayService
+import pdb
 
 AutoRecordEnabled=False
 Headless=False
 use_lcd = False
 use_gpio = False
 use_kmod = False
+
 
 if Headless:
     AutoRecordEnabled=True
@@ -66,12 +69,12 @@ except:
 
     
 
-def lprint(text, line=0):
+def lprintX(text, line=0):
     if line == 0:
         lcd.clear()
     lcd.print_line(text, line)
 
-def display(text, line=0):
+def displayX(text, line=0):
     if use_lcd:
         lprint(text, line)
         print(text)
@@ -91,16 +94,12 @@ def load_kernel_module(module):
         k = kmod.Kmod()
         if (not module_is_loaded(module)):
             k.modprobe(module)
-    else:
-         display(f"EMU: {module} loaded")
     
 def remove_kernel_module(module):
     if use_lcd:
         k = kmod.Kmod()
         if (module_is_loaded(module)):
             k.rmmod(module)
-    else:
-        display(f"EMU: {module} removed")
     
 states = [
           State(
@@ -275,8 +274,24 @@ class Elephant(threading.Thread):
        self.last_saved_file = None
        
        self.filemanager = None
+       self.display_service = None
        
-       
+     
+    def display_status(self):
+        status_text = []
+        status_text.append(self.state)
+        status_text.append(self.filemanager.get_current_file())
+        status_text.append("")
+        self.display_service.display_message(status_text)    
+    
+    def display_exception(self, exception):
+        status_text = []
+        status_text.append(self.state)
+        status_text.append(self.filemanager.get_current_file())
+        status_text.append(exception)
+        self.display_service.display_message(status_text, clear, pause)    
+        
+    
     def get_last_saved_file(self):
         return self.last_saved_file
     
@@ -314,7 +329,6 @@ class Elephant(threading.Thread):
             for name in inPortNames:
                 try:
                     self.inputPort = mido.open_input(name)
-                    display(f"Input: {name.split()[0]}")
                     break
                 except Exception as e:
                    pass
@@ -326,7 +340,7 @@ class Elephant(threading.Thread):
     
     def close_output_port(self):
         if not self.outputPort is None:
-            self.outputPort.panic()
+            #self.outputPort.panic()
             self.outputPort.close()
             
         self.outputPort = None
@@ -335,8 +349,6 @@ class Elephant(threading.Thread):
     def get_output_port(self):
         if self.outputPort is None:
             self.outputPort = mido.open_output(outPortName)
-            display(f"Output: {outPortName.split()[0]}", 1)
-            
         return self.outputPort
     
     
@@ -348,33 +360,31 @@ class Elephant(threading.Thread):
             
     def save_recording(self):
         if self.midifile is None:
-            display("Nothing to save...")
             return
         
-        filename = f"{datetime.today().strftime('%Y-%m-%d-%H-%M-%S')}.mid"
-        display("Saving:")
-        display(filename, 1)
-        file_to_save=f"{midi_base_directory}/{filename}"
-        print(f"File={file_to_save}")
-        self.midifile.save(file_to_save) 
-        self.last_saved_file = filename
-        self.set_midi_file(None)
-        
-        self.close_input_port()
-        self.close_output_port()
-        self.filemanager.refresh()
-        self.raise_event(E_RECORDING_SAVED)
+        try:
+            filename = f"{datetime.today().strftime('%Y-%m-%d-%H-%M-%S')}.mid"
+            file_to_save=f"{midi_base_directory}/{filename}"
+            print(f"File={file_to_save}")
+            self.midifile.save(file_to_save) 
+            self.last_saved_file = filename
+            self.set_midi_file(None)
+            
+            self.close_input_port()
+            self.close_output_port()
+            self.filemanager.refresh()
+            self.raise_event(E_RECORDING_SAVED)
+        except Exception as e:
+            self.display_exception(e)
             
     #####################################################        
     # State machine events are defined here        
     #####################################################
     def e_default(self, event_data): 
         print(event_data.transition)
-        display(self.state)
         
     def e_waiting_for_midi(self, event_data): 
         print(event_data.transition)
-        display(self.state)
         if self.led_manager != None:
             self.led_manager.led_blink_on()
         midiEventService = MIDIEventService.MIDIEventService(name="MIDIEventService", 
@@ -386,7 +396,6 @@ class Elephant(threading.Thread):
         pass
         
     def e_auto_recording(self, event_data): 
-        display(self.state)
         if self.led_manager != None:
             self.led_manager.led_on()
         
@@ -398,7 +407,7 @@ class Elephant(threading.Thread):
         pass
         
     def e_auto_saving(self, event_data): 
-        display(self.state)
+        print(self.state)
         if self.led_manager != None:
             self.led_manager.led_off()
         
@@ -409,7 +418,6 @@ class Elephant(threading.Thread):
     
     def e_playing(self, event_data): 
         print(event_data.transition)
-        display(self.state)
         playbackService = PlaybackService.PlaybackService(name="PlaybackService", 
                                                           elephant=self)
         playbackService.start()
@@ -419,14 +427,13 @@ class Elephant(threading.Thread):
         #print(f"Exit {self.state}")
 
     def e_playing_paused(self, event_data): 
-        display(self.state)
+        pass
 
     def x_playing_paused(self, event_data): 
         pass
         #print(f"Exit {self.state}")
 
     def e_recording(self, event_data): 
-        display(self.state)
         
         if self.led_manager != None:
             self.led_manager.led_on()
@@ -441,7 +448,6 @@ class Elephant(threading.Thread):
         #print(f"Exit {self.state}")
 
     def e_recording_paused(self, event_data):
-        display(self.state)
         if self.led_manager != None:
             self.led_manager.led_blink_on()
 
@@ -450,7 +456,6 @@ class Elephant(threading.Thread):
         #print(f"Exit {self.state}")
 
     def e_saving_recording(self, event_data) : 
-        display(self.state)
         if self.led_manager != None:
             self.led_manager.led_off()
        
@@ -461,7 +466,6 @@ class Elephant(threading.Thread):
         pass
 
     def e_stopped(self, event_data) :
-        display(self.state)
         if self.led_manager != None:
             self.led_manager.led_off()
         load_kernel_module('g_midi')
@@ -470,7 +474,6 @@ class Elephant(threading.Thread):
         pass
     
     def e_skip_back_while_stopped(self, event_data): 
-        print(event_data.transition)
         file = self.filemanager.get_previous_file()
         
         if file is not None:
@@ -483,7 +486,7 @@ class Elephant(threading.Thread):
         pass
     
     def e_skip_back_while_playing(self, event_data): 
-        print(event_data.transition)
+        #print(event_data.transition)
         file = self.filemanager.get_previous_file()
         
         if file is not None:
@@ -495,7 +498,7 @@ class Elephant(threading.Thread):
         pass
 
     def e_skip_back_while_playing_paused(self, event_data): 
-        print(event_data.transition)
+        #print(event_data.transition)
         file = self.filemanager.get_previous_file()
         
         if file is not None:
@@ -507,7 +510,7 @@ class Elephant(threading.Thread):
         pass
     
     def e_skip_forward_while_stopped(self, event_data): 
-        print(event_data.transition)
+        #print(event_data.transition)
         file = self.filemanager.get_next_file()
         
         if file is not None:
@@ -519,7 +522,7 @@ class Elephant(threading.Thread):
         pass
     
     def e_skip_forward_while_playing(self, event_data): 
-        print(event_data.transition)
+        #print(event_data.transition)
         file = self.filemanager.get_next_file()
         if file is not None:
             self.raise_event(E_NEXT_TRACK)
@@ -530,7 +533,7 @@ class Elephant(threading.Thread):
        pass
     
     def e_skip_forward_while_playing_paused(self, event_data): 
-        print(event_data.transition)
+        #print(event_data.transition)
         self.filemanager.get_next_file()
         file = self.raise_event(E_NEXT_TRACK)
         if file is not None:
@@ -542,22 +545,20 @@ class Elephant(threading.Thread):
        pass
     
     def e_seeking_forward(self, event_data): 
-        print(event_data.transition)
-        display(self.state)
+        #print(event_data.transition)
+        pass
 
     def x_seeking_forward(self, event_data): 
         pass
     
     def e_seeking_back(self, event_data): 
         print(event_data.transition)
-        display(self.state)
 
     def x_seeking_back(self, event_data): 
         pass
     
     def e_mass_storage_management(self, event_data): 
         print(event_data.transition)
-        display(self.state)
         remove_kernel_module('g_midi')
         load_kernel_module('g_mass_storage')
 
@@ -565,6 +566,9 @@ class Elephant(threading.Thread):
         remove_kernel_module('g_mass_storage')
     
     def setup_state_machine(self):
+        
+        self.display_service = DisplayService.DisplayService("Display", self)
+        self.display_service.start()
         
         if use_gpio:
             led_manager = LEDManager.LEDManager("ledmanager", 
@@ -587,14 +591,11 @@ class Elephant(threading.Thread):
         self.filemanager = MidiFileManager.MidiFileManager(name="MidiFileManager", 
                                                            elephant=self)
         self.filemanager.start()
-        
-        display(f"Files: {self.filemanager.get_file_count()}")
-        time.sleep(2)
+        self.filemanager.refresh()
     
     
     def run(self):
         self.setup_state_machine()
-        display("Elephant listening!")
 
         ## Cleanup - exception handling etc.
         # Open up the input and output ports.  It's OK to run
@@ -602,18 +603,21 @@ class Elephant(threading.Thread):
         
         if AutoRecordEnabled:
             self.raise_event(E_AUTO_RECORD_BUTTON)
-        
-        while True:
-            if not self.event_queue.empty():
+        try:
+            while True:
                 trigger_method = self.event_queue.get()
                 logging.debug('Getting ' + str(trigger_method)
                               + ' : ' + str(self.event_queue.qsize()) + ' items in queue')
                 try:
                     print(f"Executing trigger method {trigger_method}")
                     getattr(self.state_machine, trigger_method)()
+                    #pdb.set_trace()
+                    self.display_status()
                 except Exception as exception:
                     print(exception)
-        return
+            return
+        except Exception as e:
+            self.display_exception(e)
 
 if __name__ == '__main__':
     try:
