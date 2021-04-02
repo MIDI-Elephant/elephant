@@ -433,5 +433,9 @@ Can't connect iphone to mido-based server. May need to have rtpmidid - rtpmidi d
 https://github.com/davidmoreno/rtpmidid
 
 
-
+###################
+Faster booting details
+###################
+https://www.tecmint.com/systemd-analyze-monitor-linux-bootup-performance/
+https://forum.armbian.com/topic/2445-speed-up-boot-time/
 

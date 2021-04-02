@@ -283,7 +283,7 @@ class Elephant(threading.Thread):
         status_text = []
         status_text.append(self.state)
         
-        if self.state not in [S_RECORDING, S_AUTO_RECORDING, S_WAITING_FOR_MIDI]:
+        if self.state not in [S_RECORDING, S_AUTO_RECORDING, S_WAITING_FOR_MIDI, S_MASS_STORAGE_MANAGEMENT]:
             file_tuple = self.filemanager.get_current_file_tuple()
             if file_tuple != None:
                 seconds = "{:.1f}".format(file_tuple[1])
@@ -503,7 +503,7 @@ class Elephant(threading.Thread):
         file = self.filemanager.get_previous_filename()
         
         # Sleep so that the user knows that it happened..
-        time.sleep(.75)
+        #time.sleep(.75)
         
         if file is not None:
             self.raise_event(E_PREVIOUS_FILE)
@@ -520,7 +520,7 @@ class Elephant(threading.Thread):
         file = self.filemanager.get_previous_filename()
         
         # Sleep so that the user knows that it happened..
-        time.sleep(.75)
+        #time.sleep(.75)
         
         if file is not None:
             self.raise_event(E_PREVIOUS_FILE)
@@ -536,7 +536,7 @@ class Elephant(threading.Thread):
         file = self.filemanager.get_next_filename()
         
         # Sleep so that the user knows that it happened..
-        time.sleep(.75)
+        #time.sleep(.75)
         
         if file is not None:
             self.raise_event(E_NEXT_FILE)
@@ -553,7 +553,7 @@ class Elephant(threading.Thread):
         file = self.filemanager.get_next_filename()
         
         # Sleep so that the user knows that it happened..
-        time.sleep(.75)
+        #time.sleep(.75)
         
         if file is not None:
             self.raise_event(E_NEXT_FILE)
@@ -573,7 +573,7 @@ class Elephant(threading.Thread):
         
         
         # Sleep so that the user knows that it happened..
-        time.sleep(.75)
+        #time.sleep(.75)
         
         if file is not None:
             self.raise_event(E_NEXT_FILE)
@@ -652,7 +652,7 @@ class Elephant(threading.Thread):
                 try:
                     print(f"Executing trigger method {trigger_method}")
                     getattr(self.state_machine, trigger_method)()
-                    self.display_status(pause=.75)
+                    self.display_status(pause=.2)
                 except Exception as exception:
                     print(exception)
             return

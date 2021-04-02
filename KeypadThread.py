@@ -17,7 +17,8 @@ except:
 
 try:
     import OPi.GPIO as GPIO
-    from GPIOReadcharThread import GPIOReadcharThread as readchar
+    #from GPIOReadcharThread import GPIOReadcharThread as readchar
+    from TCPReadcharThread import TCPReadcharThread as readchar
     use_gpio = True
     first_repeat_wait = .1
     normal_repeat_wait = .1

@@ -36,6 +36,7 @@ E_MIDI_PAUSED='E_MIDIPaused'
 # Switch 'Gadget' between MIDI and Mass Storage
 E_SWITCH_MODE='E_SwitchMode'
 E_SWITCH_MODE_RELEASED='E_SwitchModeReleased'
+E_CONTINUOUS_PLAYBACK='E_ContinuousPlayback'
 
 #
 # This table maps characters that can be typed
@@ -55,7 +56,8 @@ event_map ={
     '[' : E_SEEK_BACK_RELEASED,
     ']' : E_SEEK_FORWARD_RELEASED,
     'X' : E_SWITCH_MODE,
-    'x' : E_SWITCH_MODE_RELEASED
+    'x' : E_SWITCH_MODE_RELEASED,
+    'c' : E_CONTINUOUS_PLAYBACK
     }
 
 characters_that_can_repeat = {

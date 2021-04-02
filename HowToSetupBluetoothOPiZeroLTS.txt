@@ -1,0 +1,65 @@
+
+
+Enable uart1 on OPi via armbian-config:
+
+System->Hardware->uart1
+
+Reboot
+
+
+This setup uses the HC-05 Bluetooth module.  It's connected to the OrangePi Zero LTS on UART1.  Pins:
+
+HC-05	<---> OrangePi
+Tx      <---> Pin 10, Uart1 Rx
+Rx      <---> Pin 8, Uart1 Tx
+Vcc     <---> Pin 5, +5v
+Gnd	<---> Pin 25, Unused Gnd
+
+
+After setting this up, The device needs to be configured for high speed
+bluetooth communications via the AT mode. To do this, we will connect
+to it on ttyS1 via the 'screen' program and configure it. Before connecting
+the power to the board, hold down the button on the board and then connect
+power. The LED should blink twice, pause 2 seconds, and blink twice again - continuously.
+
+Now it's in AT command mode. Connect to it via screen:
+
+screen /dev/ttyS1 38400
+
+Type AT and press Ctrl-J - should see OK if it's working.  Then...
+
+# Change name
+AT+NAME=Elephant
+# Change baud rate
+AT+UART=115200,1,0
+# Change password
+AT+PSWD="0000"
+Must type 'return' then 'ctrl-J' for the above to work
+
+Supported baud rate: 9600,19200,38400,57600,115200,230400,460800
+
+16-Mar-2021
+Just discovered two things: HC-05 module does not work with IOS because IOS only connects
+with BLE 4.0 and above devices.
+
+Max baud rate for Orange Pi Uart seems to be around 115200
+
+
+#######################################
+Alternative using CSR 4.0 USB Dongle ordered from Amazon
+
+Connect to USB port.
+Install bluetooth support
+start USB service
+
+hciconfig - should show hci0
+
+> bluetoothctl
+show - should show device 
+discoverable on
+power on
+pairable yes
+select <device-id>
+
+
+
