@@ -35,13 +35,22 @@ class TCPReadcharThread(threading.Thread):
         
         # Create a TCP/IP socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         
         # Bind the socket to the address given on the command line
-        server_name = '192.168.0.229'
+        server_name = '127.0.0.1'
         server_address = (server_name, 10000)
         print(f"starting up on {server_address}")
         
-        sock.bind(server_address)
+        while True:
+            try:
+                sock.bind(server_address)
+                break
+            except Exception as e:
+                print(f"Exception binding {server_address} - retrying in 10s");
+                time.sleep(10)
+            
+                 
         sock.listen(1)
         
         while True:

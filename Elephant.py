@@ -278,6 +278,8 @@ class Elephant(threading.Thread):
        self.filemanager = None
        self.display_service = None
        
+       self.playbackservice = None
+       
      
     def display_status(self, pause=0):
         status_text = []
@@ -430,9 +432,9 @@ class Elephant(threading.Thread):
     
     def e_playing(self, event_data): 
         print(event_data.transition)
-        playbackService = PlaybackService.PlaybackService(name="PlaybackService", 
+        self.playbackservice = PlaybackService.PlaybackService(name="PlaybackService", 
                                                           elephant=self)
-        playbackService.start()
+        self.playbackservice.start()
 
     def x_playing(self, event_data): 
         pass
@@ -479,6 +481,9 @@ class Elephant(threading.Thread):
 
     def e_stopped(self, event_data) :
         print(event_data.transition)
+        if self.playbackservice != None:
+            self.playbackservice.join()
+            self.playbackservice = None
         if self.led_manager != None:
             self.led_manager.led_off()
         load_kernel_module('g_midi')
@@ -499,8 +504,15 @@ class Elephant(threading.Thread):
         pass
     
     def e_skip_back_while_playing(self, event_data): 
-        #print(event_data.transition)
-        file = self.filemanager.get_previous_filename()
+        if self.playbackservice != None:
+            print("Waiting for playback thread to terminate...")
+            self.playbackservice.event.set() #terminate = True
+            self.playbackservice.join()
+            self.playbackservice = None
+            print("Continuing with skip...")
+            
+        file = self.filemanager.get_next_filename(full_path=True)
+        print(f"Skipped back to file {file}")
         
         # Sleep so that the user knows that it happened..
         #time.sleep(.75)
@@ -549,8 +561,16 @@ class Elephant(threading.Thread):
         pass
     
     def e_skip_forward_while_playing(self, event_data): 
-        #print(event_data.transition)
+        print(event_data.transition)
+        if self.playbackservice != None:
+            print("Waiting for playback thread to terminate...")
+            self.playbackservice.event.set() #terminate = True
+            self.playbackservice.join()
+            self.playbackservice = None
+            print("Continuing with skip...")
+            
         file = self.filemanager.get_next_filename()
+        print(f"Skipped forward to file {file}")
         
         # Sleep so that the user knows that it happened..
         #time.sleep(.75)

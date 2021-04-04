@@ -1,8 +1,10 @@
 import threading
+from threading import Event
 import ElephantCommon as common
 import Elephant
 import time as time
 import mido as mido
+
 from mido import MidiFile
 
 
@@ -12,6 +14,10 @@ class PlaybackService(threading.Thread):
        threading.Thread.__init__(self)
        self.elephant = elephant
        self.name = name
+       
+       self.terminate = False
+       self.event = Event()
+       
 
 
     def run(self):
@@ -27,16 +33,19 @@ class PlaybackService(threading.Thread):
         length = midifile.length
         
         for msg in midifile.play():
-            if self.elephant.get_state() != common.S_PLAYING:
+            if self.elephant.get_state() != common.S_PLAYING or self.terminate:
                 break
             if not msg.is_meta:
-                time.sleep(msg.time)
+                #time.sleep(msg.time)
+                self.event.wait(msg.time)
+                if self.event.is_set():
+                    break
                 outPort.send(msg)
                 #print(f"Played: {msg}")
          
         self.elephant.close_output_port() 
         self.elephant.raise_event(common.E_END_OF_FILE)
-        print("PlaybackService exiting...")
+        print(f"PlaybackService exiting, terminate={self.terminate}")
         print(f"State={self.elephant.get_state()}")
        
        
