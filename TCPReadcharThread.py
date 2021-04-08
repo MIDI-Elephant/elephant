@@ -38,7 +38,7 @@ class TCPReadcharThread(threading.Thread):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         
         # Bind the socket to the address given on the command line
-        server_name = '127.0.0.1'
+        server_name = 'elephant.local'
         server_address = (server_name, 10000)
         print(f"starting up on {server_address}")
         

@@ -1,36 +1,41 @@
 #!/usr/local/bin/python3
+import asyncio
+from datetime import datetime
+import logging
+import pdb
+from queue import Empty
+import queue
 import sys 
-import time
+import threading
 from time import sleep as sleep
+import time
+
+from mido import MidiFile
+import mido
+from transitions import Machine
+from transitions import State
 import transitions
 from transitions.extensions.asyncio import AsyncMachine
-from transitions import Machine
-import asyncio
-from transitions import State
-import threading
-import logging
-import queue
-from queue import Empty
-import EventThread
-import KeypadThread
-import RecordingService
-import PlaybackService
-import MIDIEventService
+
+import DisplayService
 from ElephantCommon import *
 from ElephantCommon import event_map as event_map
+import EventThread
+import KeypadThread
 import LEDManager
-import mido
-from mido import MidiFile
-from datetime import datetime
+import MIDIEventService
 import MidiFileManager
-import DisplayService
-import pdb
+import PlaybackService
+import RecordingService
+
 
 AutoRecordEnabled=False
-Headless=False
+Headless=True
 use_lcd = False
 use_gpio = False
 use_kmod = False
+
+max_path_elements=3
 
 
 if Headless:
@@ -63,8 +68,9 @@ try:
     midi_base_directory= '/mnt/usb_share'
  
 except:
+    max_path_elements=4
     outPortName='ElephantIAC'
-    inPortNames=['iRig MIDI 2']
+    inPortNames=['VMPK Output', 'iRig MIDI 2']
     midi_base_directory= '/Users/edward/MIDI'
 
     
@@ -189,6 +195,22 @@ states = [
               on_exit=['x_auto_saving'],
               ),
           State(
+              name=S_CONTINUOUS_PLAYBACK_ENABLE,
+              on_enter=['e_continuous_playback_enable']
+              ),
+          State(
+              name=S_CONTINUOUS_PLAYBACK_DISABLE,
+              on_enter=['e_continuous_playback_disable']
+              ),
+          State(
+              name=S_TRACKING_SILENCE_ENABLE,
+              on_enter=['e_tracking_silence_enable']
+              ),
+          State(
+              name=S_TRACKING_SILENCE_DISABLE,
+              on_enter=['e_tracking_silence_disable']
+              ),
+          State(
               name=S_MASS_STORAGE_MANAGEMENT,
               on_enter=['e_mass_storage_management'],
               on_exit=['x_mass_storage_management'],)
@@ -206,12 +228,21 @@ transitions = [
         [ E_SWITCH_MODE_RELEASED, S_MASS_STORAGE_MANAGEMENT, S_MASS_STORAGE_MANAGEMENT],
         [ E_SWITCH_MODE, S_MASS_STORAGE_MANAGEMENT, S_STOPPED],
         [ E_SWITCH_MODE_RELEASED, S_STOPPED, S_STOPPED],
+        [ E_CONTINUOUS_PLAYBACK_ENABLE, S_STOPPED, S_CONTINUOUS_PLAYBACK_ENABLE],
+        [ E_CONFIG_COMPLETE, S_CONTINUOUS_PLAYBACK_ENABLE, S_STOPPED],
+        [ E_CONTINUOUS_PLAYBACK_DISABLE, S_STOPPED, S_CONTINUOUS_PLAYBACK_DISABLE],
+        [ E_CONFIG_COMPLETE, S_CONTINUOUS_PLAYBACK_DISABLE, S_STOPPED],
+        [ E_TRACKING_SILENCE_ENABLE, S_STOPPED, S_TRACKING_SILENCE_ENABLE],
+        [ E_CONFIG_COMPLETE, S_TRACKING_SILENCE_ENABLE, S_STOPPED],
+        [ E_TRACKING_SILENCE_DISABLE, S_STOPPED, S_TRACKING_SILENCE_DISABLE],
+        [ E_CONFIG_COMPLETE, S_TRACKING_SILENCE_DISABLE, S_STOPPED],
+        
         
         # Playing
         [ E_PLAY_PAUSE_BUTTON, S_STOPPED, S_PLAYING ],
         [ E_PLAY_PAUSE_BUTTON, S_PLAYING, S_PLAYING_PAUSED ],
         [ E_PLAY_PAUSE_BUTTON, S_PLAYING_PAUSED, S_PLAYING ],
-        # Autoplay [ E_END_OF_FILE, S_PLAYING, S_SKIP_FORWARD_WHILE_PLAYING ],
+        [ E_AUTO_NEXT, S_PLAYING, S_SKIP_FORWARD_WHILE_PLAYING ],
         [ E_END_OF_FILE, S_PLAYING, S_STOPPED ],
         [ E_NO_FILE, S_SKIP_FORWARD_WHILE_PLAYING, S_STOPPED ],
         [ E_NO_FILE, S_PLAYING, S_STOPPED ],
@@ -279,6 +310,17 @@ class Elephant(threading.Thread):
        self.display_service = None
        
        self.playbackservice = None
+       self.recordingservice = None
+       
+       if Headless:
+           self.continuous_playback_enabled=True
+           self.tracking_silence_enabled=True
+       else:
+           self.continuous_playback_enabled=False
+           self.tracking_silence_enabled=False
+       
+       
+       self.seconds_of_silence=0.0
        
      
     def display_status(self, pause=0):
@@ -370,7 +412,32 @@ class Elephant(threading.Thread):
         try:
             self.event_queue.put(event_name)
         except Exception as exception:
-            print(exception)
+            print(exception)    
+    
+    #
+    # If we are tracking 'silence', save a file that represents
+    # the total amount of 'silence' since the last save
+    #
+    def save_silence(self):  
+        filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}-S.mid"
+        file_to_save=f"{midi_base_directory}/{filename}"
+        print(f"Saving silence of {self.seconds_of_silence} to {file_to_save}")
+        midifile = mido.MidiFile(filename=None, file=None, type=0, ticks_per_beat=20000) 
+        track = mido.MidiTrack()
+        midifile.tracks.append(track)
+        ticksPerBeat = 10000
+        tempo = mido.bpm2tempo(120)
+        
+        current_time = time.time()
+        delta_time = self.seconds_of_silence
+        intTime = int(mido.second2tick(delta_time, ticksPerBeat, tempo))
+        msg = mido.Message('note_on', note=0, velocity=0, time=intTime)
+        print(f"Appended: {msg}")
+        track.append(msg)
+        midifile.save(file_to_save)
+        self.seconds_of_silence=0.0
+
+        
             
     def save_recording(self):
         if self.midifile is None:
@@ -432,20 +499,43 @@ class Elephant(threading.Thread):
     
     def e_playing(self, event_data): 
         print(event_data.transition)
-        self.playbackservice = PlaybackService.PlaybackService(name="PlaybackService", 
-                                                          elephant=self)
-        self.playbackservice.start()
+        if event_data.transition.source != S_PLAYING_PAUSED:
+            self.playbackservice = PlaybackService.PlaybackService(name="PlaybackService", 
+                                                          elephant=self, continuous=self.continuous_playback_enabled)
+            self.playbackservice.start()
+        else:
+            self.playbackservice.pause_event.set()
+        
+    def e_continuous_playback_enable(self, event_data): 
+        print(event_data.transition)
+        self.continuous_playback_enabled=True
+        self.raise_event(E_CONFIG_COMPLETE)
+        
+    def e_continuous_playback_disable(self, event_data): 
+        print(event_data.transition)
+        self.continuous_playback_enabled=False
+        self.raise_event(E_CONFIG_COMPLETE)
+        
+    def e_tracking_silence_enable(self, event_data): 
+        print(event_data.transition)
+        self.tracking_silence_enabled=True
+        self.raise_event(E_CONFIG_COMPLETE)
+        
+    def e_tracking_silence_disable(self, event_data): 
+        print(event_data.transition)
+        self.tracking_silence_enabled=False
+        self.raise_event(E_CONFIG_COMPLETE)
 
     def x_playing(self, event_data): 
         pass
         #print(f"Exit {self.state}")
 
-    def e_playing_paused(self, event_data): 
-        pass
+    def e_playing_paused(self, event_data):
+        self.playbackservice.pause_event.clear() 
 
     def x_playing_paused(self, event_data): 
-        pass
         #print(f"Exit {self.state}")
+        pass
 
     def e_recording(self, event_data): 
         
@@ -506,7 +596,7 @@ class Elephant(threading.Thread):
     def e_skip_back_while_playing(self, event_data): 
         if self.playbackservice != None:
             print("Waiting for playback thread to terminate...")
-            self.playbackservice.event.set() #terminate = True
+            self.playbackservice.event.set()
             self.playbackservice.join()
             self.playbackservice = None
             print("Continuing with skip...")
@@ -564,7 +654,7 @@ class Elephant(threading.Thread):
         print(event_data.transition)
         if self.playbackservice != None:
             print("Waiting for playback thread to terminate...")
-            self.playbackservice.event.set() #terminate = True
+            self.playbackservice.event.set()
             self.playbackservice.join()
             self.playbackservice = None
             print("Continuing with skip...")
@@ -614,8 +704,15 @@ class Elephant(threading.Thread):
     def e_seeking_back(self, event_data): 
         print(event_data.transition)
 
-    def x_seeking_back(self, event_data): 
-        pass
+    def e_tracking_silence_enable(self, event_data): 
+        print(event_data.transition)
+        self.tracking_silence_enabled=True
+        self.raise_event(E_CONFIG_COMPLETE)
+    
+    def e_tracking_silence_disable(self, event_data): 
+        print(event_data.transition)
+        self.tracking_silence_enabled=False
+        self.raise_event(E_CONFIG_COMPLETE)
     
     def e_mass_storage_management(self, event_data): 
         print(event_data.transition)

@@ -26,8 +26,8 @@ try:
     print("Using GPIOReadCharThread")
 except:
     use_gpio = False
-    #from TerminalReadcharThread import TerminalReadcharThread as readchar
-    from TCPReadcharThread import TCPReadcharThread as readchar
+    from TerminalReadcharThread import TerminalReadcharThread as readchar
+    #from TCPReadcharThread import TCPReadcharThread as readchar
     first_repeat_wait = .5
     normal_repeat_wait = .1
     total_repeat_count = 2

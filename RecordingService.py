@@ -11,12 +11,13 @@ class RecordingService(threading.Thread):
        self.elephant = elephant
        self.name = name
        self.auto=auto
+       self.silence_elapsed=0.0
      
     def midi_pause_elapsed(self, start_time): 
        if self.auto:
-           elapsed = time.time() - start_time
+           self.silence_elapsed = time.time() - start_time
            #print(f"Elapsed: {elapsed}")
-           return elapsed >= common.MAX_MIDI_IDLE_TIME_SECONDS
+           return self.silence_elapsed >= common.MAX_MIDI_IDLE_TIME_SECONDS
        else:
            return False 
                    
@@ -39,6 +40,7 @@ class RecordingService(threading.Thread):
         if not msg is None and common.is_channel_message(msg):
             msg.time = int(mido.second2tick(0, ticksPerBeat, tempo))
             outPort.send(msg)
+            print(f"Appended message: {msg}")
             track.append(msg)
 
         last_time = time.time()
@@ -51,6 +53,7 @@ class RecordingService(threading.Thread):
                 if msg is None:
                     time.sleep(.001)
                     if self.midi_pause_elapsed(start_time):
+                         self.elephant.seconds_of_silence += self.silence_elapsed
                          self.elephant.raise_event(common.E_MIDI_PAUSED)
                          return
                     continue
@@ -59,6 +62,7 @@ class RecordingService(threading.Thread):
                 #print(f"Sent: {msg}")
                 
                 if not common.is_channel_message(msg) and self.midi_pause_elapsed(start_time):
+                    self.elephant.seconds_of_silence += self.silence_elapsed
                     self.elephant.raise_event(common.E_MIDI_PAUSED)
                     return
                 elif common.is_channel_message(msg):

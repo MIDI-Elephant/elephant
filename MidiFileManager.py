@@ -7,6 +7,7 @@ import pdb
 import traceback
 from mido import MidiFile
 
+
 # https://www.programcreek.com/python/example/90175/mido.MidiFile
 #
 # This class is responsible for managing midi files for
@@ -97,7 +98,7 @@ class MidiFileManager():
             if full_path:
                 return tuple_to_return
             else:
-                new_tuple = tuple((f"{tuple_to_return[0].split('/')[3].split('.')[0]}", tuple_to_return[1]))
+                new_tuple = tuple((f"{tuple_to_return[0].split('/')[Elephant.max_path_elements].split('.')[0]}", tuple_to_return[1]))
                 return new_tuple
         
         return None
@@ -115,7 +116,7 @@ class MidiFileManager():
             if full_path:
                 return file_to_return
             else:
-                return f"{file_to_return.split('/')[3].split('.')[0]}"
+                return f"{file_to_return.split('/')[Elephant.max_path_elements].split('.')[0]}"
         
         return None
             

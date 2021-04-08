@@ -20,6 +20,7 @@ E_AUTO_RECORD_BUTTON='E_AutoRecordButton'
 #
 E_RECORDING_SAVED='E_RecordingSaved'
 E_END_OF_FILE='E_EndOfFile'
+E_AUTO_NEXT='E_AutoNext'
 E_NO_FILE='E_NoFile'
 E_LAST_FILE='E_LastFile'
 E_FIRST_FILE='E_FirstFile'
@@ -36,7 +37,11 @@ E_MIDI_PAUSED='E_MIDIPaused'
 # Switch 'Gadget' between MIDI and Mass Storage
 E_SWITCH_MODE='E_SwitchMode'
 E_SWITCH_MODE_RELEASED='E_SwitchModeReleased'
-E_CONTINUOUS_PLAYBACK='E_ContinuousPlayback'
+E_CONFIG_COMPLETE='E_ConfigComplete'
+E_CONTINUOUS_PLAYBACK_ENABLE='E_ContinuousPlaybackEnable'
+E_CONTINUOUS_PLAYBACK_DISABLE='E_ContinuousPlaybackDisable'
+E_TRACKING_SILENCE_ENABLE='E_TrackingSilenceEnable'
+E_TRACKING_SILENCE_DISABLE='E_TrackingSilenceDisable'
 
 #
 # This table maps characters that can be typed
@@ -57,7 +62,10 @@ event_map ={
     ']' : E_SEEK_FORWARD_RELEASED,
     'X' : E_SWITCH_MODE,
     'x' : E_SWITCH_MODE_RELEASED,
-    'c' : E_CONTINUOUS_PLAYBACK
+    'C' : E_CONTINUOUS_PLAYBACK_ENABLE,
+    'c' : E_CONTINUOUS_PLAYBACK_DISABLE,
+    'T' : E_TRACKING_SILENCE_ENABLE,
+    't' : E_TRACKING_SILENCE_DISABLE
     }
 
 characters_that_can_repeat = {
@@ -106,6 +114,10 @@ S_WAITING_FOR_MIDI='WaitingForMIDI'
 S_AUTO_RECORDING='Recording Auto'
 S_AUTO_SAVING='Saving Auto'
 S_MASS_STORAGE_MANAGEMENT='MassStorage Management'
+S_CONTINUOUS_PLAYBACK_ENABLE='ContinuousEnabled Playback'
+S_CONTINUOUS_PLAYBACK_DISABLE='ContinuousDisabled Playback'
+S_TRACKING_SILENCE_ENABLE='TrackingSilenceEnable'
+S_TRACKING_SILENCE_DISABLE='TrackingSilenceDisable'
 
 def is_channel_message(msg):
     return (msg.type in midi_channel_messages.keys())

@@ -9,19 +9,20 @@ from mido import MidiFile
 
 
 class PlaybackService(threading.Thread):
-    def __init__(self, name, elephant=None):
+    def __init__(self, name, elephant=None, continuous=False):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
        self.elephant = elephant
        self.name = name
        
+       self.continuous = continuous
        self.terminate = False
        self.event = Event()
+       self.pause_event = Event()
        
 
-
     def run(self):
-        print("PlaybackService started...")
+        print(f"PlaybackService started, continuous={self.continuous}")
         
         midifile_path=self.elephant.filemanager.get_current_filename(full_path=True)
         if midifile_path is None:
@@ -33,10 +34,13 @@ class PlaybackService(threading.Thread):
         length = midifile.length
         
         for msg in midifile.play():
-            if self.elephant.get_state() != common.S_PLAYING or self.terminate:
+            if self.elephant.get_state() != common.S_PLAYING and self.elephant.get_state() != common.S_PLAYING_PAUSED:
                 break
+            
+            if self.elephant.get_state() == common.S_PLAYING_PAUSED:
+                self.pause_event.wait()
+            
             if not msg.is_meta:
-                #time.sleep(msg.time)
                 self.event.wait(msg.time)
                 if self.event.is_set():
                     break
@@ -44,7 +48,12 @@ class PlaybackService(threading.Thread):
                 #print(f"Played: {msg}")
          
         self.elephant.close_output_port() 
-        self.elephant.raise_event(common.E_END_OF_FILE)
+        
+        if not self.continuous:
+            self.elephant.raise_event(common.E_END_OF_FILE)
+        else:
+            self.elephant.raise_event(common.E_AUTO_NEXT)
+            
         print(f"PlaybackService exiting, terminate={self.terminate}")
         print(f"State={self.elephant.get_state()}")
        

@@ -345,7 +345,19 @@ apt purge alsa-utils
 # Update apt repo source  list or it will be slow.....!!!
 https://askubuntu.com/questions/37753/how-can-i-get-apt-to-use-a-mirror-close-to-me-or-choose-a-faster-mirror
 
-Disable wireless network power control
+#Disable wireless network power control
+iwconfig wlan0 - gives status
+
+Type iwconfig and look at the output. You should see the name of your chip-set as well as the whether power management is off or on. If it doesn't say, it is probably off.
+
+To turn off power management, go to /etc/NetworkManager/conf.d/default-wifi-powersave-on.conf and you will see
+
+[connection]
+wifi.powersave = 3
+Change the 3 to a 2 and reboot.
+
+Then run iwconfig and if it worked you should see Power Management:off.
+
 
 
 # Set up Elephant as a USB mass-storage device.
@@ -438,4 +450,7 @@ Faster booting details
 ###################
 https://www.tecmint.com/systemd-analyze-monitor-linux-bootup-performance/
 https://forum.armbian.com/topic/2445-speed-up-boot-time/
+
+
+
 
