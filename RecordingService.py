@@ -40,7 +40,7 @@ class RecordingService(threading.Thread):
         if not msg is None and common.is_channel_message(msg):
             msg.time = int(mido.second2tick(0, ticksPerBeat, tempo))
             outPort.send(msg)
-            print(f"Appended message: {msg}")
+            # print(f"Appended message: {msg}")
             track.append(msg)
 
         last_time = time.time()

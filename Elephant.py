@@ -437,7 +437,7 @@ class Elephant(threading.Thread):
         delta_time = self.seconds_of_silence
         intTime = int(mido.second2tick(delta_time, ticksPerBeat, tempo))
         msg = mido.Message('note_on', note=0, velocity=0, time=intTime)
-        print(f"Appended: {msg}")
+        # print(f"Appended: {msg}")
         track.append(msg)
         midifile.save(file_to_save)
         self.seconds_of_silence=0.0
