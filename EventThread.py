@@ -21,13 +21,15 @@ from ElephantCommon import *
 
 #
 class EventThread(threading.Thread):
-    def __init__(self, name, char_queue= None, state_machine=None, event_queue=None):
+    def __init__(self, name, 
+                 state_machine=None, event_queue=None,
+                 command_data_plugin_name='TerminalReadcharThread'):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
        self.event_queue = event_queue
        self.state_machine = state_machine
        self.name = name
-       self.char_queue=char_queue
+       self.command_data_plugin_name=command_data_plugin_name
 
 
     def is_held_char(self, charToCheck):
@@ -61,10 +63,10 @@ class EventThread(threading.Thread):
     
 
     def run(self):
-        print("Starting keypad thread")
+        print(f"EventThread for {self.name} started...")
         
        
-        keypadThread = KeypadThread.KeypadThread("keypad")
+        keypadThread = KeypadThread.KeypadThread(self.command_data_plugin_name, self.command_data_plugin_name)
         
         keypadThread.start()
         

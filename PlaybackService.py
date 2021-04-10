@@ -37,8 +37,8 @@ class PlaybackService(threading.Thread):
             if self.elephant.get_state() != common.S_PLAYING and self.elephant.get_state() != common.S_PLAYING_PAUSED:
                 break
             
-            if self.elephant.get_state() == common.S_PLAYING_PAUSED:
-                self.pause_event.wait()
+            while self.elephant.get_state() == common.S_PLAYING_PAUSED:
+                self.pause_event.wait(timeout=.1)
             
             if not msg.is_meta:
                 self.event.wait(msg.time)

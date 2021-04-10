@@ -3,6 +3,7 @@ import time
 import threading
 import logging
 import queue
+import importlib
 from queue import Empty
 from ElephantCommon import event_map as event_map
 from ElephantCommon import *
@@ -26,7 +27,7 @@ try:
     print("Using GPIOReadCharThread")
 except:
     use_gpio = False
-    from TerminalReadcharThread import TerminalReadcharThread as readchar
+    #from TerminalReadcharThread import TerminalReadcharThread as readchar
     #from TCPReadcharThread import TCPReadcharThread as readchar
     first_repeat_wait = .5
     normal_repeat_wait = .1
@@ -34,12 +35,13 @@ except:
     print("Using TerminalReadcharThread")
 
 class KeypadThread(threading.Thread):
-    def __init__(self, name):
+    def __init__(self, name, command_data_plugin_name=None):
         threading.Thread.__init__(self)
         self.name = name
         self.output_queue=queue.Queue(10)
         self.readchar_thread=None
         self.input_queue=None
+        self.command_data_plugin_name=command_data_plugin_name
        
     def get_output_queue(self):
         return self.output_queue
@@ -73,10 +75,13 @@ class KeypadThread(threading.Thread):
        
     def run(self):
         
+        module=importlib.import_module(self.command_data_plugin_name)
+        readchar=getattr(module, self.command_data_plugin_name)
+        
         self.readchar_thread=readchar(self)
         self.readchar_thread.start()
         
-        print("EventThread is running...")
+        print("KeypadThread is running...")
         seek_event = False
         checking_for_seek = False
         last_char_pressed_time = time.perf_counter()

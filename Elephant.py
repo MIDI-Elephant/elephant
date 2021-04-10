@@ -35,13 +35,14 @@ import RecordingService
 
 
 AutoRecordEnabled=False
-Headless=True
+Headless=False
 use_lcd = False
 use_gpio = False
 use_kmod = False
 
 max_path_elements=3
 
+eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
 
 if Headless:
     AutoRecordEnabled=True
@@ -59,6 +60,8 @@ else:
         import OPi.GPIO as GPIO
         use_gpio = True
         import GPIOReadcharThread
+        
+        eventThreadPlugins.append('GPIOReadcharThread')
     except:
         pass
 
@@ -292,6 +295,23 @@ transitions = [
         [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_STOPPED],
         [ E_STOP_BUTTON, S_WAITING_FOR_MIDI, S_STOPPED ]
         ]
+
+import threading, sys, traceback
+
+def dumpstacks(signal, frame):
+    id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
+    code = []
+    for threadId, stack in sys._current_frames().items():
+        code.append("\n# Thread: %s(%d)" % (id2name.get(threadId,""), threadId))
+        for filename, lineno, name, line in traceback.extract_stack(stack):
+            code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
+            if line:
+                code.append("  %s" % (line.strip()))
+                print(code.join("\n"))
+
+import signal
+signal.signal(signal.SIGQUIT, dumpstacks)
+
 
 
 class Elephant(threading.Thread):
@@ -577,7 +597,6 @@ class Elephant(threading.Thread):
     def e_stopped(self, event_data) :
         print(event_data.transition)
         if self.playbackservice != None:
-            self.playbackservice.join()
             self.playbackservice = None
         if self.led_manager != None:
             self.led_manager.led_off()
@@ -742,13 +761,13 @@ class Elephant(threading.Thread):
                                initial = S_STOPPED, send_event=True)
         
         self.event_queue = queue.Queue(10)
-        characterQueue = queue.Queue(10)
     
-        event_thread = EventThread.EventThread(name='events',
-                                   char_queue=characterQueue,
-                                   state_machine=self,
-                                   event_queue=self.event_queue)
-        event_thread.start()
+        for plugin in eventThreadPlugins:
+            event_thread = EventThread.EventThread(name=f"{plugin}.events",
+                                       state_machine=self,
+                                       event_queue=self.event_queue,
+                                       command_data_plugin_name=plugin)
+            event_thread.start()
         
         self.filemanager = MidiFileManager.MidiFileManager(name="MidiFileManager", 
                                                            elephant=self)
@@ -782,6 +801,25 @@ class Elephant(threading.Thread):
             self.display_exception(e)
 
 if __name__ == '__main__':
+    
+    import threading, sys, traceback
+
+    def dumpstacks(signal, frame):
+        id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
+        code = []
+        for threadId, stack in sys._current_frames().items():
+            code.append("\n# Thread: %s(%d)" % (id2name.get(threadId,""), threadId))
+            for filename, lineno, name, line in traceback.extract_stack(stack):
+                code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
+                if line:
+                    code.append("  %s" % (line.strip()))
+                    print(f"\n".join(code))
+
+    import signal
+    signal.signal(signal.SIGQUIT, dumpstacks)
+    
+    
+    
     try:
         elephant_thread = Elephant(name='Elephant')
         elephant_thread.start()

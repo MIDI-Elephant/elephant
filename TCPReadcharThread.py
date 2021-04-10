@@ -13,20 +13,17 @@ import termios as termios
 import tty as tty
 import socket
 from queue import Empty
-import EventThread
 import KeypadThread
 from ElephantCommon import event_map as event_map
 from ElephantCommon import held_character_translation_map as held_character_translation_map
 from ElephantCommon import held_character_release_map as held_character_release_map
-
-char_queue=queue.Queue(10)
 
 class TCPReadcharThread(threading.Thread):
     def __init__(self, name):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
        self.name = name
-       self.output_queue=char_queue
+       self.output_queue=queue.Queue(10)
        
     def get_output_queue(self):
         return self.output_queue
@@ -38,7 +35,7 @@ class TCPReadcharThread(threading.Thread):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         
         # Bind the socket to the address given on the command line
-        server_name = 'elephant.local'
+        server_name = socket.gethostname()
         server_address = (server_name, 10000)
         print(f"starting up on {server_address}")
         
@@ -64,13 +61,15 @@ class TCPReadcharThread(threading.Thread):
                     if len(data) == 0:
                         break
                     print(f"Data length={len(data)}")
-                    print(f"received: {data.decode('utf-8')}")
+                    print(f"{self.name} received: {data.decode('utf-8')}")
                     self.output_queue.put(data.decode('utf-8'))
+                    print(f"{self.name} queued: {data.decode('utf-8')}")
             except Exception as e:
                 print(f"Exception receiving: {e}")
             finally:
                 print("Closing connection...")
                 connection.close()
+                break
 
         return
        

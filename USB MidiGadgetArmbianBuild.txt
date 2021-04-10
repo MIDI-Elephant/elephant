@@ -452,5 +452,12 @@ https://www.tecmint.com/systemd-analyze-monitor-linux-bootup-performance/
 https://forum.armbian.com/topic/2445-speed-up-boot-time/
 
 
+#
+# Debugging helpers
+pip3 install pyrasite
+apt install gdb python2-dbg
+
+
+
 
 
