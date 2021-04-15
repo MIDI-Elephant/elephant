@@ -458,6 +458,10 @@ pip3 install pyrasite
 apt install gdb python2-dbg
 
 
+###################
+## Standalone setup:  Disable UART1 by removing module from /etc/amrbianEnv.txt
+
+
 
 
 

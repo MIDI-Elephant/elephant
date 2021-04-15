@@ -53,10 +53,10 @@ class TCPReadcharThread(threading.Thread):
         while True:
             print('waiting for a connection')
             connection, client_address = sock.accept()
-            try:
-                print(f"client connected: {client_address}")
-                message = ""
-                while True:
+            print(f"client connected: {client_address}")
+            message = ""
+            while True:
+                try:
                     data = connection.recv(1)
                     if len(data) == 0:
                         break
@@ -64,13 +64,12 @@ class TCPReadcharThread(threading.Thread):
                     print(f"{self.name} received: {data.decode('utf-8')}")
                     self.output_queue.put(data.decode('utf-8'))
                     print(f"{self.name} queued: {data.decode('utf-8')}")
-            except Exception as e:
-                print(f"Exception receiving: {e}")
-            finally:
-                print("Closing connection...")
-                connection.close()
-                break
-
-        return
+                except Exception as e:
+                    print(f"Exception receiving: {e}")
+                    break
+                finally:
+                    print("Closing connection...")
+                    connection.close()
+                      
        
 
