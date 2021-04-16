@@ -33,55 +33,32 @@ import MidiFileManager
 import PlaybackService
 import RecordingService
 
-
-AutoRecordEnabled=False
-Headless=False
-use_lcd = False
-use_gpio = False
-use_kmod = False
-
-max_path_elements=3
+import config_elephant as cfg
 
 eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
 
-if Headless:
-    AutoRecordEnabled=True
-else:
-    try:
-        import i2clcd as LCD
-        use_lcd = True
-        lcd = LCD.i2clcd(i2c_bus=0, i2c_addr=0x27, lcd_width=20)
-        lcd.init()
-        lcd.set_backlight(True)
-    except:
-        pass
 
-    try:
-        import OPi.GPIO as GPIO
-        use_gpio = True
-        import GPIOReadcharThread
-        
-        eventThreadPlugins.append('GPIOReadcharThread')
-    except:
-        pass
+try:
+    import i2clcd as LCD
+    lcd = LCD.i2clcd(i2c_bus=0, i2c_addr=0x27, lcd_width=20)
+    lcd.init()
+    lcd.set_backlight(True)
+except:
+    pass
+
+try:
+    import OPi.GPIO as GPIO
+    import GPIOReadcharThread
+    
+    eventThreadPlugins.append('GPIOReadcharThread')
+except:
+    pass
 
 try:
     import kmod
-    use_kmod = True
-    outPortName='f_midi'
-    inPortNames=[
-                    'Novation SL MkIII:Novation SL MkIII MIDI 1 24:0',
-                    'UM-ONE:UM-ONE MIDI 1 24:0', 'MIDI9/QRS PNOScan MIDI 1'
-                ]
-    midi_base_directory= '/mnt/usb_share'
- 
 except:
-    max_path_elements=4
-    outPortName='ElephantIAC'
-    inPortNames=['VMPK Output', 'iRig MIDI 2']
-    midi_base_directory= '/Users/edward/MIDI'
+    pass
 
-    
 
 def lprintX(text, line=0):
     if line == 0:
@@ -89,14 +66,14 @@ def lprintX(text, line=0):
     lcd.print_line(text, line)
 
 def displayX(text, line=0):
-    if use_lcd:
+    if Elephant.cfg.use_lcd:
         lprint(text, line)
         print(text)
     else:
         print(text)
 
 def module_is_loaded(module):
-    if use_kmod:
+    if cfg.use_kmod:
         k = kmod.Kmod()
         for tuple in k.list():
             if tuple[0] == module:
@@ -104,13 +81,13 @@ def module_is_loaded(module):
         return False
     
 def load_kernel_module(module):
-    if use_kmod:
+    if cfg.use_kmod:
         k = kmod.Kmod()
         if (not module_is_loaded(module)):
             k.modprobe(module)
     
 def remove_kernel_module(module):
-    if use_lcd:
+    if Elephant.cfg.use_lcd:
         k = kmod.Kmod()
         if (module_is_loaded(module)):
             k.rmmod(module)
@@ -337,7 +314,7 @@ class Elephant(threading.Thread):
        self.playbackservice = None
        self.recordingservice = None
        
-       if Headless:
+       if cfg.Headless:
            self.continuous_playback_enabled=True
            self.tracking_silence_enabled=True
        else:
@@ -377,7 +354,7 @@ class Elephant(threading.Thread):
         return self.last_saved_file
     
     def get_midi_base_directory(self):
-        return midi_base_directory
+        return cfg.midi_base_directory
     
     def set_trigger_message(self, msg):
         self.trigger_message = msg
@@ -407,7 +384,7 @@ class Elephant(threading.Thread):
         
     def get_input_port(self):
         if self.inputPort is None:
-            for name in inPortNames:
+            for name in cfg.inPortNames:
                 try:
                     self.inputPort = mido.open_input(name)
                     break
@@ -429,7 +406,7 @@ class Elephant(threading.Thread):
     
     def get_output_port(self):
         if self.outputPort is None:
-            self.outputPort = mido.open_output(outPortName)
+            self.outputPort = mido.open_output(cfg.outPortName)
         return self.outputPort
     
     
@@ -445,7 +422,7 @@ class Elephant(threading.Thread):
     #
     def save_silence(self):  
         filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}-S.mid"
-        file_to_save=f"{midi_base_directory}/{filename}"
+        file_to_save=f"{cfg.midi_base_directory}/{filename}"
         print(f"Saving silence of {self.seconds_of_silence} to {file_to_save}")
         midifile = mido.MidiFile(filename=None, file=None, type=0, ticks_per_beat=20000) 
         track = mido.MidiTrack()
@@ -470,7 +447,7 @@ class Elephant(threading.Thread):
         
         try:
             filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}.mid"
-            file_to_save=f"{midi_base_directory}/{filename}"
+            file_to_save=f"{cfg.midi_base_directory}/{filename}"
             print(f"File={file_to_save}")
             self.midifile.save(file_to_save) 
             self.last_saved_file = filename
@@ -751,7 +728,7 @@ class Elephant(threading.Thread):
         self.display_service = DisplayService.DisplayService("Display", self)
         self.display_service.start()
         
-        if use_gpio:
+        if cfg.use_gpio:
             led_manager = LEDManager.LEDManager("ledmanager", 
                                      GPIOReadcharThread.RECORD_STATUS_LED)
             led_manager.start()
@@ -783,7 +760,7 @@ class Elephant(threading.Thread):
         # Open up the input and output ports.  It's OK to run
         # without an output port but we must have an input port.
         
-        if AutoRecordEnabled:
+        if cfg.AutoRecordEnabled:
             self.raise_event(E_AUTO_RECORD_BUTTON)
         try:
             while True:

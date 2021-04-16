@@ -17,7 +17,7 @@ class RecordingService(threading.Thread):
        if self.auto:
            self.silence_elapsed = time.time() - start_time
            #print(f"Elapsed: {elapsed}")
-           return self.silence_elapsed >= common.MAX_MIDI_IDLE_TIME_SECONDS
+           return self.silence_elapsed >= Elephant.cfg.MAX_MIDI_IDLE_TIME_SECONDS
        else:
            return False 
                    

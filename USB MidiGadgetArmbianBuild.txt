@@ -368,9 +368,9 @@ https://magpi.raspberrypi.org/articles/pi-zero-w-smart-usb-flash-drive
 STEP-07: Create a container file
 To enable mass storage device mode, we need to create a large file to act as the storage medium on the SD card. This file will emulate the USB flash drive that the TV sees.
 
-The command below will create an empty 2GB binary file (change the count=2048 parameter if you want a different size). Please note that this will be limited by the available free space on your SD card (check the Avail column in df -h), and it may take a few minutes to complete the setup. 
+The command below will create an empty 128M binary file (change the count=128 parameter if you want a different size). Please note that this will be limited by the available free space on your SD card (check the Avail column in df -h), and it may take a few minutes to complete the setup. 
 
-dd bs=1M if=/dev/mmcblk0p1 of=/elephant.bin count=8192
+dd bs=1M if=/dev/mmcblk0p1 of=/elephant.bin count=128
 mkdosfs /elephant.bin -F 32 -I -n Elephant
 
 

@@ -5,34 +5,10 @@ import logging
 import queue
 import importlib
 from queue import Empty
+import Elephant
 from ElephantCommon import event_map as event_map
 from ElephantCommon import *
 
-use_lcd = False
-
-try:
-    import i2clcd as LCD
-    use_lcd = True
-except:
-    pass
-
-try:
-    import OPi.GPIO as GPIO
-    #from GPIOReadcharThread import GPIOReadcharThread as readchar
-    from TCPReadcharThread import TCPReadcharThread as readchar
-    use_gpio = True
-    first_repeat_wait = .1
-    normal_repeat_wait = .1
-    total_repeat_count = 4
-    print("Using GPIOReadCharThread")
-except:
-    use_gpio = False
-    #from TerminalReadcharThread import TerminalReadcharThread as readchar
-    #from TCPReadcharThread import TCPReadcharThread as readchar
-    first_repeat_wait = .5
-    normal_repeat_wait = .1
-    total_repeat_count = 2
-    print("Using TerminalReadcharThread")
 
 class KeypadThread(threading.Thread):
     def __init__(self, name, command_data_plugin_name=None):
@@ -48,7 +24,7 @@ class KeypadThread(threading.Thread):
     
     def is_held_char(self, charToCheck):
      repeat_count = 0
-     repeat_wait = first_repeat_wait
+     repeat_wait = self.readchar_thread.first_repeat_wait
      while True:
         try: 
             buttonChar = self.input_queue.get(timeout=repeat_wait)
@@ -59,9 +35,9 @@ class KeypadThread(threading.Thread):
             return False
 
         repeat_count  += 1
-        repeat_wait = normal_repeat_wait
+        repeat_wait = self.readchar_thread.normal_repeat_wait
 
-        if repeat_count == total_repeat_count:
+        if repeat_count == self.readchar_thread.total_repeat_count:
             return True
 
     def is_held_char_timeout(self, charToCheck):

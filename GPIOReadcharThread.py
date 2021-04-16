@@ -88,6 +88,10 @@ def setup_gpio():
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_OFF) 
     
 class GPIOReadcharThread(threading.Thread):
+    
+    first_repeat_wait = .1
+    normal_repeat_wait = .1
+    total_repeat_count = 4
         
     def __init__(self, name):
        # Call the Thread class's init function

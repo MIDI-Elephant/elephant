@@ -55,16 +55,16 @@ class MidiFileManager():
            self.current_tuples = []
      
     def get_full_path(self, filename):
-        return f"{Elephant.midi_base_directory}/{filename}.mid"
+        return f"{Elephant.cfg.midi_base_directory}/{filename}.mid"
         
     def refresh(self):
         self.current_list = []
         self.current_tuples = []
-        glob_list = glob.glob(f"{Elephant.midi_base_directory}/*.mid")
+        glob_list = glob.glob(f"{Elephant.cfg.midi_base_directory}/*.mid")
         
         print(f"glob_list={glob_list}")
         
-        self.current_list = sorted(glob.glob(f"{Elephant.midi_base_directory}/*.mid"), reverse=False)
+        self.current_list = sorted(glob.glob(f"{Elephant.cfg.midi_base_directory}/*.mid"), reverse=False)
         
         print(self.current_list)
         
@@ -98,7 +98,7 @@ class MidiFileManager():
             if full_path:
                 return tuple_to_return
             else:
-                new_tuple = tuple((f"{tuple_to_return[0].split('/')[Elephant.max_path_elements].split('.')[0]}", tuple_to_return[1]))
+                new_tuple = tuple((f"{tuple_to_return[0].split('/')[Elephant.cfg.max_path_elements].split('.')[0]}", tuple_to_return[1]))
                 return new_tuple
         
         return None
@@ -116,7 +116,7 @@ class MidiFileManager():
             if full_path:
                 return file_to_return
             else:
-                return f"{file_to_return.split('/')[Elephant.max_path_elements].split('.')[0]}"
+                return f"{file_to_return.split('/')[Elephant.cfg.max_path_elements].split('.')[0]}"
         
         return None
             
@@ -162,7 +162,7 @@ class MidiFileManager():
         
         try:
             filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}.mid"
-            file_to_save=f"{midi_base_directory}/{filename}"
+            file_to_save=f"{Elephant.cfg.midi_base_directory}/{filename}"
             print(f"File={file_to_save}")
             self.midifile.save(file_to_save) 
             self.last_saved_file = filename

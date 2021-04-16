@@ -18,6 +18,10 @@ from ElephantCommon import held_character_release_map as held_character_release_
 
 
 class TerminalReadcharThread(threading.Thread):
+    first_repeat_wait = .5
+    normal_repeat_wait = .1
+    total_repeat_count = 2
+    
     def __init__(self, name):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
