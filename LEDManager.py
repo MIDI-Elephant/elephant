@@ -25,16 +25,26 @@ class LEDManager(threading.Thread):
        self.state = OFF
        self.blink_delay = blink_delay
        
+       self.isRunning = True
+       
        GPIO.setboard(GPIO.ZERO)  
        GPIO.setmode(GPIO.BOARD)
+       
+       print(f"Setting up self={self}, name={self.name}, pin {self.led_pin} as output")
        GPIO.setup(self.led_pin, GPIO.OUT)
        GPIO.output(self.led_pin, False)   
+       
+       #GPIO.output(self.led_pin, True)
+       #time.sleep(2)
+       #GPIO.output(self.led_pin, True)
+       
        
     def _led_on(self):
         GPIO.output(self.led_pin, True)
         
     def _led_off(self):
         GPIO.output(self.led_pin, False)
+        
        
     def led_on(self):
         self.state=ON
@@ -47,10 +57,20 @@ class LEDManager(threading.Thread):
      
     def led_blink_off(self):
        self.state=OFF
+       
+    def led_stop(self):
+        print(f"Shutting down LED {self.name}")
+        self.isRunning = False
         
     def run(self):
         
-        while True:
+        print(f"LED Manager Thread {self.name} started!")
+        
+        GPIO.output(self.led_pin, True)
+        time.sleep(2)
+        GPIO.output(self.led_pin, True)
+        
+        while self.isRunning:
             # This looks pretty unorthodox but it's here to allow
             # for the lowest possible latency when switching from
             # blinking to on
@@ -66,12 +86,19 @@ class LEDManager(threading.Thread):
                     else:
                         break
                 
-            if self.state == ON:
-                self._led_on()
-                sleep(.2)
-            else:
-                self._led_off()
-                sleep(.2)
+            state = ""
+            try:
+                if self.state == ON:
+                    state = "ON"
+                    self._led_on()
+                    sleep(.2)
+                else:
+                    state = "OFF"
+                    self._led_off()
+                    sleep(.2)
+            except Exception as e:
+                print(f"Exception, state={state}, pin={self.led_pin}, {e}")
+                break
 
         
     

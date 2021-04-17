@@ -66,7 +66,9 @@ class EventThread(threading.Thread):
         print(f"EventThread for {self.name} started...")
         
        
-        keypadThread = KeypadThread.KeypadThread(self.command_data_plugin_name, self.command_data_plugin_name)
+        keypadThread = KeypadThread.KeypadThread(self.command_data_plugin_name, 
+                                                 self.command_data_plugin_name,
+                                                 elephant=self.state_machine)
         
         keypadThread.start()
         

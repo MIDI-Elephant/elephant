@@ -2,6 +2,9 @@
 import socket
 import sys
 import time
+import termios as termios
+import tty as tty
+import readchar
 
 # Create a TCP/IP socket
 
@@ -13,20 +16,11 @@ while True:
     sock.connect(server_address)
 
     try:
-        message = 'This is the message.  It will be repeated.'
-        print(f"sending: '{message}' repeatedly...") 
-        sock.sendall(message.encode('utf-8')) == 0
-        amount_expected = len(message)
-        amount_received = 0
-        new_data = "" 
-        while amount_received < amount_expected:
-            data = sock.recv(16)
-            new_data += data.decode('utf-8')
-            amount_received += len(data)
-
-        print(f"received: {new_data}")
+        while True:
+            char = readchar.readchar()
+            print(f"got '{char}'")
+            sock.sendall(char.encode('utf-8'))
 
     finally:
         sock.close()
     
-    time.sleep(2)

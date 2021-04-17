@@ -11,13 +11,14 @@ from ElephantCommon import *
 
 
 class KeypadThread(threading.Thread):
-    def __init__(self, name, command_data_plugin_name=None):
+    def __init__(self, name, command_data_plugin_name=None, elephant=None):
         threading.Thread.__init__(self)
         self.name = name
         self.output_queue=queue.Queue(10)
         self.readchar_thread=None
         self.input_queue=None
         self.command_data_plugin_name=command_data_plugin_name
+        self.elephant=elephant
        
     def get_output_queue(self):
         return self.output_queue
@@ -54,7 +55,7 @@ class KeypadThread(threading.Thread):
         module=importlib.import_module(self.command_data_plugin_name)
         readchar=getattr(module, self.command_data_plugin_name)
         
-        self.readchar_thread=readchar(self)
+        self.readchar_thread=readchar(self, elephant=self.elephant)
         self.readchar_thread.start()
         
         print("KeypadThread is running...")

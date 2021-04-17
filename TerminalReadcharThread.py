@@ -22,7 +22,7 @@ class TerminalReadcharThread(threading.Thread):
     normal_repeat_wait = .1
     total_repeat_count = 2
     
-    def __init__(self, name):
+    def __init__(self, name, elephant=None):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
        self.name = name

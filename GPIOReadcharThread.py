@@ -14,7 +14,7 @@ RECORD_BOARD=15
 AUTO_RECORD_BOARD=19
 BACK_BOARD=21
 FORWARD_BOARD=23
-RECORD_STATUS_LED=26
+
 
 STOP_GPIO=1
 PLAY_GPIO=0
@@ -93,11 +93,12 @@ class GPIOReadcharThread(threading.Thread):
     normal_repeat_wait = .1
     total_repeat_count = 4
         
-    def __init__(self, name):
+    def __init__(self, name, elephant=None):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
        self.name = name
        self.output_queue=char_queue
+       self.elephant=elephant
        atexit.register(self.cleanup)
      
     def get_output_queue(self):

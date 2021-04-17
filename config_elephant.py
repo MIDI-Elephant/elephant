@@ -7,20 +7,21 @@ try:
     print(f"Already configured for platform {__platform__}")
 except Exception as e:
     print("First time configuration!")
-    __platform__='NOTCONFIGURED'
+    __platform__='headless'
     
     # Pop first arg which is executable name
     sys.argv.pop(0)
     
     try:
         opts, args = getopt.getopt(sys.argv,"p:",["platform="])
+        for opt, arg in opts:
+            if opt in ("-p", "--platform"):
+                __platform__=arg
     except getopt.GetoptError:
         print(f"{argv[0]} --platform=[headless|dev|mac]")
-        sys.exit(2)
+        print(f"No platform provided, continuing with default=headless")
     
-    for opt, arg in opts:
-        if opt in ("-p", "--platform"):
-            __platform__=arg
+   
        
     
     print(f"Configuring Elephant for platform '{__platform__}'")
@@ -29,6 +30,8 @@ except Exception as e:
     
         AutoRecordEnabled=False
         Headless=True
+        ContinuousPlaybackEnabled=False
+        TrackingSilenceEnabled=False
         
         use_lcd = False
         use_gpio = False
@@ -43,10 +46,21 @@ except Exception as e:
         
         MAX_MIDI_IDLE_TIME_SECONDS=10
         
+        PLAY_STATUS_LED=16  # solid-green = playing, flashing-green = playing paused
+        ELEPHANT_ONLINE_LED=18 # solid-green = ready, flashing-green = app connected
+        MASS_STORAGE_ENABLED_LED=8
+        RECORD_STATUS_LED=10 # solid-red = recording, flashing-red = listening for midi
+        MASS_STORAGE_TOGGLE=12
+       
+       
+        
+        
     elif __platform__ == "dev":
         
         AutoRecordEnabled=False
-        Headless=False
+        Headless=True
+        ContinuousPlaybackEnabled=False
+        TrackingSilenceEnabled=False
         
         use_lcd = True
         use_gpio = True
@@ -61,10 +75,17 @@ except Exception as e:
         
         MAX_MIDI_IDLE_TIME_SECONDS=10
         
+        RECORD_STATUS_LED=26 # solid-red = recording, flashing-red = listening for midi
+        PLAY_STATUS_LED=None  
+        ELEPHANT_ONLINE_LED=None 
+        MASS_STORAGE_ENABLED_LED=None
+        
     elif __platform__ == "mac":
         
         AutoRecordEnabled=False
-        Headless=False
+        Headless=True
+        ContinuousPlaybackEnabled=False
+        TrackingSilenceEnabled=False
         
         use_lcd = False
         use_gpio = False
@@ -83,10 +104,25 @@ except Exception as e:
         max_path_elements=4
         
         MAX_MIDI_IDLE_TIME_SECONDS=10
+        
+        RECORD_STATUS_LED=None 
+        PLAY_STATUS_LED=None  
+        ELEPHANT_ONLINE_LED=None 
+        MASS_STORAGE_ENABLED_LED=None
     
     else:
         print(f"Unsupported platform: {__platform__}")
         sys.exit(2)
+        
+    RECORD_STATUS='record'
+    PLAY_STATUS='play'
+    ELEPHANT_ONLINE='elephant_online'
+    MASS_STORAGE='mass_storage'
+        
+    led_manager_params = [(RECORD_STATUS, RECORD_STATUS_LED), 
+                          (PLAY_STATUS, PLAY_STATUS_LED), 
+                          (ELEPHANT_ONLINE, ELEPHANT_ONLINE_LED),
+                          (MASS_STORAGE, MASS_STORAGE_ENABLED_LED)]
         
         
 print(f"Platform '{__platform__}' was successfully configured.")

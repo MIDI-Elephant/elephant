@@ -17,13 +17,15 @@ import KeypadThread
 from ElephantCommon import event_map as event_map
 from ElephantCommon import held_character_translation_map as held_character_translation_map
 from ElephantCommon import held_character_release_map as held_character_release_map
+import Elephant
 
 class TCPReadcharThread(threading.Thread):
-    def __init__(self, name):
+    def __init__(self, name, elephant=None):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
        self.name = name
        self.output_queue=queue.Queue(10)
+       self.elephant=elephant
        
     def get_output_queue(self):
         return self.output_queue
@@ -54,6 +56,9 @@ class TCPReadcharThread(threading.Thread):
             print('waiting for a connection')
             connection, client_address = sock.accept()
             print(f"client connected: {client_address}")
+            if self.elephant != None:
+                self.elephant.led_blink_on(Elephant.cfg.ELEPHANT_ONLINE)
+            
             message = ""
             while True:
                 try:
@@ -69,6 +74,8 @@ class TCPReadcharThread(threading.Thread):
                     break
                 finally:
                     print("Closing connection...")
+                    if self.elephant != None:
+                        self.elephant.led_on(Elephant.cfg.ELEPHANT_ONLINE)
                     connection.close()
                       
        
