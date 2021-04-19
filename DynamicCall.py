@@ -1,5 +1,6 @@
 
-                
+class AnyClass(Object):
+
     def led_flash_on(self, mgr_name):
         self.led_dynamic_op(mgr_name, 'led_blink_on')
     
@@ -21,6 +22,7 @@
     def led_stop(self, mgr_name):
         self.led_dynamic_op(mgr_name, 'led_stop')
      
+    
     def led_dynamic_op(self, mgr_name, op):   
         if self.active_led_managers == None:
             return;

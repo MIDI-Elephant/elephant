@@ -13,13 +13,13 @@ import termios as termios
 import tty as tty
 import socket
 from queue import Empty
-import KeypadThread
-from ElephantCommon import event_map as event_map
-from ElephantCommon import held_character_translation_map as held_character_translation_map
-from ElephantCommon import held_character_release_map as held_character_release_map
-import Elephant
+import ElephantCommon
 
 class TCPReadcharThread(threading.Thread):
+    first_repeat_wait = .5
+    normal_repeat_wait = .1
+    total_repeat_count = 2
+    
     def __init__(self, name, elephant=None):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
@@ -32,51 +32,43 @@ class TCPReadcharThread(threading.Thread):
     
     def run(self):
         
-        # Create a TCP/IP socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        
         # Bind the socket to the address given on the command line
         server_name = socket.gethostname()
         server_address = (server_name, 10000)
         print(f"starting up on {server_address}")
         
-        while True:
-            try:
-                sock.bind(server_address)
-                break
-            except Exception as e:
-                print(f"Exception binding {server_address} - retrying in 10s");
-                time.sleep(10)
-            
-                 
+        sock.bind(server_address)
         sock.listen(1)
         
         while True:
             print('waiting for a connection')
             connection, client_address = sock.accept()
-            print(f"client connected: {client_address}")
-            #if self.elephant != None:
-            #    self.elephant.led_blink_on(Elephant.cfg.ELEPHANT_ONLINE)
-            
-            message = ""
-            while True:
-                try:
+            try:
+                print(f"client connected: {client_address}")
+                if self.elephant != None:
+                    self.elephant.set_indicator_for_state(ElephantCommon.S_CLIENT_CONNECTED)
+                message = ""
+                while True:
                     data = connection.recv(1)
                     if len(data) == 0:
                         break
                     print(f"Data length={len(data)}")
-                    print(f"{self.name} received: {data.decode('utf-8')}")
+                    print(f"received: {data.decode('utf-8')}")
                     self.output_queue.put(data.decode('utf-8'))
-                    print(f"{self.name} queued: {data.decode('utf-8')}")
-                except Exception as e:
-                    print(f"Exception receiving: {e}")
-                    break
-                finally:
-                    print("Closing connection...")
-                    #if self.elephant != None:
-                    #    self.elephant.led_on(Elephant.cfg.ELEPHANT_ONLINE)
-                    connection.close()
+            except Exception as e:
+                print(f"Exception receiving: {e}")
+            finally:
+                print("Closing connection...")
+                self.elephant.set_indicator_for_state(ElephantCommon.S_ELEPHANT_ONLINE)
+                connection.close()
                       
-       
+if __name__ == '__main__':
+    
+    server=TCPReadcharThread('test')
+    server.start()
+    
+    
+        
 

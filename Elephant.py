@@ -92,20 +92,6 @@ def remove_kernel_module(module):
         k = kmod.Kmod()
         if (module_is_loaded(module)):
             k.rmmod(module)
-            
-def _led_dynamic_op(elephant, mgr_name, op):   
-        if elephant.active_led_managers == None:
-            return;
-        
-        mgr_thread = elephant.active_led_managers[mgr_name]
-        
-        if mgr_thread == None:
-            return
-        
-        try:
-            opref=getattr(mgr_thread, op)()
-        except Exception as e:
-            print(f"Failed to execute {mgr_name}.{op}: {e}") 
     
 states = [
           State(
@@ -330,8 +316,6 @@ class Elephant(threading.Thread):
        self.playbackservice = None
        self.recordingservice = None
        
-       
-       
        self.continuous_playback_enabled=cfg.ContinuousPlaybackEnabled
        self.tracking_silence_enabled=cfg.TrackingSilenceEnabled
        
@@ -339,21 +323,21 @@ class Elephant(threading.Thread):
        self.seconds_of_silence=0.0
      
     def set_indicator_for_state(self, state):
-        print(f"########### Setting indicator for state {state}")
         if self.active_led_managers != None:
             try:
                 indicator=cfg.indicator_for_state_dict[state]
-                print(f"Found indicator params {indicator}")
+                #print(f"Found indicator params {indicator}")
                 led_name=indicator[0]
                 if led_name != None:
                     led=self.active_led_managers[led_name]
-                    print(f"Got active manager for LED {led_name}")
+                    #print(f"Got active manager for LED {led_name}")
                     if led != None:
                         led.indicator_on(indicator[1])
             except Exception as e:
                 print(f"No indicator found for state {state}, {e}")
         else:
-            print(f"No LED managers are active.")
+            #print(f"No LED managers are active.")
+            pass
                 
     def display_status(self, pause=0):
         status_text = []
@@ -765,7 +749,6 @@ class Elephant(threading.Thread):
        
     def all_events_callback(self, event_data):
         to_state=event_data.transition.dest 
-        print(f"################# Transition to {to_state} ##################")
         self.set_indicator_for_state(to_state)
         
     def setup_state_machine(self):

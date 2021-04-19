@@ -18,9 +18,13 @@ while True:
     try:
         while True:
             char = readchar.readchar()
-            print(f"got '{char}'")
-            sock.sendall(char.encode('utf-8'))
+            bytes_sent=sock.send(char.encode('utf-8'))
+            print(f"sent {bytes_sent} bytes")
+
+    except Exception as e:
+        print(f"Exception sending bytes: {e}")
 
     finally:
+        print("Closing socket")
         sock.close()
     

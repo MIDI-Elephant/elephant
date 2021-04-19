@@ -188,17 +188,17 @@ IDX_RED_LED_PIN=1
 indicator_for_state_dict = {
     S_RECORDING : (MIDI_LED, c_red),
     S_RECORDING_PAUSED : (MIDI_LED, c_red_blink),
-    S_PLAYING : (MIDI_LED, c_green),
-    S_PLAYING_PAUSED :(MIDI_LED, c_green_blink),
+    S_PLAYING : (MIDI_LED, c_yellow),
+    S_PLAYING_PAUSED :(MIDI_LED, c_yellow_blink),
     S_WAITING_FOR_MIDI : (MIDI_LED, c_red_blink),
     S_AUTO_RECORDING : (MIDI_LED, c_red),
     S_SAVING_RECORDING : (MIDI_LED, c_orange),
     S_AUTO_SAVING : (MIDI_LED, c_orange),
-    S_READY : (MIDI_LED, c_yellow),
+    S_READY : (MIDI_LED, c_green),
     S_MIDI_ERROR : (MIDI_LED, c_red_flash),
     S_MASS_STORAGE_MANAGEMENT : (ELEPHANT_LED, c_orange_blink),
     S_ELEPHANT_ONLINE : (ELEPHANT_LED, c_green),
-    S_CLIENT_CONNECTED : (ELEPHANT_LED, c_green_blink),
+    S_CLIENT_CONNECTED : (ELEPHANT_LED, c_green_flash),
     S_ELEPHANT_ERROR : (ELEPHANT_LED, c_red_flash)
 }
 
