@@ -95,7 +95,7 @@ non_held_character_translation_map = {
 # These are all of the states related to interactions
 # with the Elephant transport
 #
-S_STOPPED='ElephantReady!'
+S_READY='ElephantReady!'
 S_PLAYING='Playing'
 S_PLAYING_PAUSED='PlayingPaused'
 S_RECORDING='Recording'
@@ -117,6 +117,11 @@ S_CONTINUOUS_PLAYBACK_ENABLE='ContinuousEnabled Playback'
 S_CONTINUOUS_PLAYBACK_DISABLE='ContinuousDisabled Playback'
 S_TRACKING_SILENCE_ENABLE='TrackingSilenceEnable'
 S_TRACKING_SILENCE_DISABLE='TrackingSilenceDisable'
+S_MIDI_ERROR='MIDIError'
+S_ELEPHANT_ERROR='ElephantError'
+S_ELEPHANT_ONLINE='ElephantOnline'
+S_CLIENT_CONNECTED='ClientConnected'
+
 
 def is_channel_message(msg):
     return (msg.type in midi_channel_messages.keys())

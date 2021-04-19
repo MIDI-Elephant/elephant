@@ -56,8 +56,8 @@ class TCPReadcharThread(threading.Thread):
             print('waiting for a connection')
             connection, client_address = sock.accept()
             print(f"client connected: {client_address}")
-            if self.elephant != None:
-                self.elephant.led_blink_on(Elephant.cfg.ELEPHANT_ONLINE)
+            #if self.elephant != None:
+            #    self.elephant.led_blink_on(Elephant.cfg.ELEPHANT_ONLINE)
             
             message = ""
             while True:
@@ -74,8 +74,8 @@ class TCPReadcharThread(threading.Thread):
                     break
                 finally:
                     print("Closing connection...")
-                    if self.elephant != None:
-                        self.elephant.led_on(Elephant.cfg.ELEPHANT_ONLINE)
+                    #if self.elephant != None:
+                    #    self.elephant.led_on(Elephant.cfg.ELEPHANT_ONLINE)
                     connection.close()
                       
        

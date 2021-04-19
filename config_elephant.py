@@ -2,6 +2,7 @@
 
 import sys
 import getopt
+from ElephantCommon import *
 
 try:
     print(f"Already configured for platform {__platform__}")
@@ -46,10 +47,13 @@ except Exception as e:
         
         MAX_MIDI_IDLE_TIME_SECONDS=10
         
-        PLAY_STATUS_LED=16  # solid-green = playing, flashing-green = playing paused
-        ELEPHANT_ONLINE_LED=18 # solid-green = ready, flashing-green = app connected
-        MASS_STORAGE_ENABLED_LED=8
-        RECORD_STATUS_LED=10 # solid-red = recording, flashing-red = listening for midi
+        MIDI_GREEN=16
+        MIDI_RED=10
+        
+        STATUS_GREEN=18
+        STATUS_RED=8
+        
+       
         MASS_STORAGE_TOGGLE=12
        
        
@@ -75,10 +79,10 @@ except Exception as e:
         
         MAX_MIDI_IDLE_TIME_SECONDS=10
         
-        RECORD_STATUS_LED=26 # solid-red = recording, flashing-red = listening for midi
-        PLAY_STATUS_LED=None  
-        ELEPHANT_ONLINE_LED=None 
-        MASS_STORAGE_ENABLED_LED=None
+        MIDI_RED=26 # solid-red = recording, flashing-red = listening for midi
+        MIDI_GREEN=None  
+        STATUS_GREEN=None 
+        STATUS_RED=None
         
     elif __platform__ == "mac":
         
@@ -105,10 +109,10 @@ except Exception as e:
         
         MAX_MIDI_IDLE_TIME_SECONDS=10
         
-        RECORD_STATUS_LED=None 
-        PLAY_STATUS_LED=None  
-        ELEPHANT_ONLINE_LED=None 
-        MASS_STORAGE_ENABLED_LED=None
+        MIDI_RED=None 
+        MIDI_GREEN=None  
+        STATUS_GREEN=None 
+        STATUS_RED=None
     
     else:
         print(f"Unsupported platform: {__platform__}")
@@ -119,11 +123,86 @@ except Exception as e:
     ELEPHANT_ONLINE='elephant_online'
     MASS_STORAGE='mass_storage'
         
-    led_manager_params = [(RECORD_STATUS, RECORD_STATUS_LED), 
-                          (PLAY_STATUS, PLAY_STATUS_LED), 
-                          (ELEPHANT_ONLINE, ELEPHANT_ONLINE_LED),
-                          (MASS_STORAGE, MASS_STORAGE_ENABLED_LED)]
-        
+    led_manager_params = [(RECORD_STATUS, MIDI_RED), 
+                          (PLAY_STATUS, MIDI_GREEN), 
+                          (ELEPHANT_ONLINE, STATUS_GREEN),
+                          (MASS_STORAGE, STATUS_RED)]
+
+
+DEFAULT_BLINK_DELAY=.75
+
+color_dict = {
+                'green' : (.0083, 0), 
+                'red' : (0, .0083), 
+                'yellow' : (.00680, .00200),
+                'orange' : (.00275, .00623) 
+                }
+
+MIDI_LED='midi'
+ELEPHANT_LED='elephant'
+
+led_dict = {
+            MIDI_LED : (MIDI_GREEN, MIDI_RED),
+            ELEPHANT_LED : (STATUS_GREEN, STATUS_RED)
+}
+
+
+
+
+c_green='green'
+c_green_blink='green:b'
+c_green_flash='green:f'
+c_red='red'
+c_red_blink='red:b'
+c_red_flash='red:f'
+c_yellow='yellow'
+c_yellow_blink='yellow:b'
+c_yellow_flash='yellow:f'
+c_orange='orange'
+c_orange_blink='orange:b'
+c_orange_flash='orange:f'
+
+all_led_colors = [ c_green, c_red, c_yellow, c_orange ]
+
+
+color_dict = {
+                c_green : (.0083, 0), 
+                c_red : (0, .0083), 
+                c_yellow : (.00680, .00200),
+                c_orange : (.00275, .00623) 
+                }
+led_dict = {
+            'midi' : (MIDI_GREEN, MIDI_RED),
+            'elephant' : (STATUS_GREEN, STATUS_RED)
+            }
+
+IDX_GREEN_LED_INTERVAL=0
+IDX_RED_LED_INTERVAL=1
+
+IDX_GREEN_LED_PIN=0
+IDX_RED_LED_PIN=1
+
+#
+# Definitions for 'indicators' for different states
+
+indicator_for_state_dict = {
+    S_RECORDING : (MIDI_LED, c_red),
+    S_RECORDING_PAUSED : (MIDI_LED, c_red_blink),
+    S_PLAYING : (MIDI_LED, c_green),
+    S_PLAYING_PAUSED :(MIDI_LED, c_green_blink),
+    S_WAITING_FOR_MIDI : (MIDI_LED, c_red_blink),
+    S_AUTO_RECORDING : (MIDI_LED, c_red),
+    S_SAVING_RECORDING : (MIDI_LED, c_orange),
+    S_AUTO_SAVING : (MIDI_LED, c_orange),
+    S_READY : (MIDI_LED, c_yellow),
+    S_MIDI_ERROR : (MIDI_LED, c_red_flash),
+    S_MASS_STORAGE_MANAGEMENT : (ELEPHANT_LED, c_orange_blink),
+    S_ELEPHANT_ONLINE : (ELEPHANT_LED, c_green),
+    S_CLIENT_CONNECTED : (ELEPHANT_LED, c_green_blink),
+    S_ELEPHANT_ERROR : (ELEPHANT_LED, c_red_flash)
+}
+
+
         
 print(f"Platform '{__platform__}' was successfully configured.")
     

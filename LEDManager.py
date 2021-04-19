@@ -11,6 +11,8 @@ try:
 except:
     pass
 
+
+
 ON=1
 OFF=2
 SLEEPING=3
@@ -33,10 +35,6 @@ class LEDManager(threading.Thread):
        print(f"Setting up self={self}, name={self.name}, pin {self.led_pin} as output")
        GPIO.setup(self.led_pin, GPIO.OUT)
        GPIO.output(self.led_pin, False)   
-       
-       #GPIO.output(self.led_pin, True)
-       #time.sleep(2)
-       #GPIO.output(self.led_pin, True)
        
        
     def _led_on(self):

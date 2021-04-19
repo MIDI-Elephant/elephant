@@ -27,7 +27,8 @@ from ElephantCommon import *
 from ElephantCommon import event_map as event_map
 import EventThread
 import KeypadThread
-import LEDManager
+#import LEDManager
+import MultiColorLEDManager
 import MIDIEventService
 import MidiFileManager
 import PlaybackService
@@ -108,7 +109,7 @@ def _led_dynamic_op(elephant, mgr_name, op):
     
 states = [
           State(
-              name=S_STOPPED, 
+              name=S_READY, 
               on_enter=['e_stopped'],
               on_exit=['x_stopped']
               ),
@@ -217,36 +218,36 @@ states = [
 
 transitions = [
         # States from Stopped
-        [ E_SKIP_BACK, S_STOPPED, S_SKIP_BACK_WHILE_STOPPED ],
-        [ E_PREVIOUS_FILE, S_SKIP_BACK_WHILE_STOPPED, S_STOPPED ],
-        [ E_NO_FILE, S_SKIP_BACK_WHILE_STOPPED, S_STOPPED ],
-        [ E_SKIP_FORWARD, S_STOPPED, S_SKIP_FORWARD_WHILE_STOPPED ],
-        [ E_NEXT_FILE, S_SKIP_FORWARD_WHILE_STOPPED, S_STOPPED ],
-        [ E_NO_FILE, S_SKIP_FORWARD_WHILE_STOPPED, S_STOPPED ],
-        [ E_SWITCH_MODE, S_STOPPED, S_MASS_STORAGE_MANAGEMENT],
+        [ E_SKIP_BACK, S_READY, S_SKIP_BACK_WHILE_STOPPED ],
+        [ E_PREVIOUS_FILE, S_SKIP_BACK_WHILE_STOPPED, S_READY ],
+        [ E_NO_FILE, S_SKIP_BACK_WHILE_STOPPED, S_READY ],
+        [ E_SKIP_FORWARD, S_READY, S_SKIP_FORWARD_WHILE_STOPPED ],
+        [ E_NEXT_FILE, S_SKIP_FORWARD_WHILE_STOPPED, S_READY ],
+        [ E_NO_FILE, S_SKIP_FORWARD_WHILE_STOPPED, S_READY ],
+        [ E_SWITCH_MODE, S_READY, S_MASS_STORAGE_MANAGEMENT],
         [ E_SWITCH_MODE_RELEASED, S_MASS_STORAGE_MANAGEMENT, S_MASS_STORAGE_MANAGEMENT],
-        [ E_SWITCH_MODE, S_MASS_STORAGE_MANAGEMENT, S_STOPPED],
-        [ E_SWITCH_MODE_RELEASED, S_STOPPED, S_STOPPED],
-        [ E_CONTINUOUS_PLAYBACK_ENABLE, S_STOPPED, S_CONTINUOUS_PLAYBACK_ENABLE],
-        [ E_CONFIG_COMPLETE, S_CONTINUOUS_PLAYBACK_ENABLE, S_STOPPED],
-        [ E_CONTINUOUS_PLAYBACK_DISABLE, S_STOPPED, S_CONTINUOUS_PLAYBACK_DISABLE],
-        [ E_CONFIG_COMPLETE, S_CONTINUOUS_PLAYBACK_DISABLE, S_STOPPED],
-        [ E_TRACKING_SILENCE_ENABLE, S_STOPPED, S_TRACKING_SILENCE_ENABLE],
-        [ E_CONFIG_COMPLETE, S_TRACKING_SILENCE_ENABLE, S_STOPPED],
-        [ E_TRACKING_SILENCE_DISABLE, S_STOPPED, S_TRACKING_SILENCE_DISABLE],
-        [ E_CONFIG_COMPLETE, S_TRACKING_SILENCE_DISABLE, S_STOPPED],
+        [ E_SWITCH_MODE, S_MASS_STORAGE_MANAGEMENT, S_READY],
+        [ E_SWITCH_MODE_RELEASED, S_READY, S_READY],
+        [ E_CONTINUOUS_PLAYBACK_ENABLE, S_READY, S_CONTINUOUS_PLAYBACK_ENABLE],
+        [ E_CONFIG_COMPLETE, S_CONTINUOUS_PLAYBACK_ENABLE, S_READY],
+        [ E_CONTINUOUS_PLAYBACK_DISABLE, S_READY, S_CONTINUOUS_PLAYBACK_DISABLE],
+        [ E_CONFIG_COMPLETE, S_CONTINUOUS_PLAYBACK_DISABLE, S_READY],
+        [ E_TRACKING_SILENCE_ENABLE, S_READY, S_TRACKING_SILENCE_ENABLE],
+        [ E_CONFIG_COMPLETE, S_TRACKING_SILENCE_ENABLE, S_READY],
+        [ E_TRACKING_SILENCE_DISABLE, S_READY, S_TRACKING_SILENCE_DISABLE],
+        [ E_CONFIG_COMPLETE, S_TRACKING_SILENCE_DISABLE, S_READY],
         
         
         # Playing
-        [ E_PLAY_PAUSE_BUTTON, S_STOPPED, S_PLAYING ],
+        [ E_PLAY_PAUSE_BUTTON, S_READY, S_PLAYING ],
         [ E_PLAY_PAUSE_BUTTON, S_PLAYING, S_PLAYING_PAUSED ],
         [ E_PLAY_PAUSE_BUTTON, S_PLAYING_PAUSED, S_PLAYING ],
         [ E_AUTO_NEXT, S_PLAYING, S_SKIP_FORWARD_WHILE_PLAYING ],
-        [ E_END_OF_FILE, S_PLAYING, S_STOPPED ],
-        [ E_NO_FILE, S_SKIP_FORWARD_WHILE_PLAYING, S_STOPPED ],
-        [ E_NO_FILE, S_PLAYING, S_STOPPED ],
-        [ E_STOP_BUTTON, S_PLAYING, S_STOPPED ],
-        [ E_STOP_BUTTON, S_PLAYING_PAUSED, S_STOPPED ],
+        [ E_END_OF_FILE, S_PLAYING, S_READY ],
+        [ E_NO_FILE, S_SKIP_FORWARD_WHILE_PLAYING, S_READY ],
+        [ E_NO_FILE, S_PLAYING, S_READY ],
+        [ E_STOP_BUTTON, S_PLAYING, S_READY ],
+        [ E_STOP_BUTTON, S_PLAYING_PAUSED, S_READY ],
         
         [ E_SKIP_BACK, S_PLAYING, S_SKIP_BACK_WHILE_PLAYING ],
         [ E_PREVIOUS_FILE, S_SKIP_BACK_WHILE_PLAYING, S_PLAYING ],
@@ -268,23 +269,23 @@ transitions = [
         [ E_SEEK_FORWARD_RELEASED, S_SEEKING_FORWARD, S_PLAYING],
         
         # Recording
-        [ E_RECORD_BUTTON, S_STOPPED, S_RECORDING ],
+        [ E_RECORD_BUTTON, S_READY, S_RECORDING ],
         [ E_RECORD_BUTTON, S_RECORDING, S_SAVING_RECORDING ],
         [ E_RECORD_BUTTON, S_RECORDING_PAUSED, S_SAVING_RECORDING ],
         [ E_STOP_BUTTON, S_RECORDING, S_SAVING_RECORDING ],
         [ E_PLAY_PAUSE_BUTTON, S_RECORDING, S_RECORDING_PAUSED ],
         [ E_PLAY_PAUSE_BUTTON, S_RECORDING_PAUSED, S_RECORDING ],
         [ E_STOP_BUTTON, S_RECORDING_PAUSED, S_SAVING_RECORDING ],
-        [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_STOPPED ],
+        [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_READY ],
         
         # Auto-recording
-        [ E_AUTO_RECORD_BUTTON, S_STOPPED, S_WAITING_FOR_MIDI ],
+        [ E_AUTO_RECORD_BUTTON, S_READY, S_WAITING_FOR_MIDI ],
         [ E_MIDI_DETECTED, S_WAITING_FOR_MIDI, S_AUTO_RECORDING ],
         [ E_MIDI_PAUSED, S_AUTO_RECORDING, S_AUTO_SAVING ],
         [ E_RECORDING_SAVED, S_AUTO_SAVING, S_WAITING_FOR_MIDI ],
         [ E_STOP_BUTTON, S_AUTO_RECORDING, S_SAVING_RECORDING ],
-        [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_STOPPED],
-        [ E_STOP_BUTTON, S_WAITING_FOR_MIDI, S_STOPPED ]
+        [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_READY],
+        [ E_STOP_BUTTON, S_WAITING_FOR_MIDI, S_READY ]
         ]
 
 import threading, sys, traceback
@@ -336,8 +337,24 @@ class Elephant(threading.Thread):
        
        
        self.seconds_of_silence=0.0
-       
      
+    def set_indicator_for_state(self, state):
+        print(f"########### Setting indicator for state {state}")
+        if self.active_led_managers != None:
+            try:
+                indicator=cfg.indicator_for_state_dict[state]
+                print(f"Found indicator params {indicator}")
+                led_name=indicator[0]
+                if led_name != None:
+                    led=self.active_led_managers[led_name]
+                    print(f"Got active manager for LED {led_name}")
+                    if led != None:
+                        led.indicator_on(indicator[1])
+            except Exception as e:
+                print(f"No indicator found for state {state}, {e}")
+        else:
+            print(f"No LED managers are active.")
+                
     def display_status(self, pause=0):
         status_text = []
         status_text.append(self.state)
@@ -481,7 +498,6 @@ class Elephant(threading.Thread):
         
     def e_waiting_for_midi(self, event_data): 
         print(event_data.transition)
-        self.led_blink_on(cfg.RECORD_STATUS)
         midiEventService = MIDIEventService.MIDIEventService(name="MIDIEventService", 
                                                 elephant=self)
         midiEventService.start()
@@ -491,8 +507,6 @@ class Elephant(threading.Thread):
         pass
         
     def e_auto_recording(self, event_data): 
-        self.led_on(cfg.RECORD_STATUS)
-        
         recordingService = RecordingService.RecordingService("AutoRecordingService", 
                                                 self, True)
         recordingService.start()
@@ -502,7 +516,6 @@ class Elephant(threading.Thread):
         
     def e_auto_saving(self, event_data): 
         print(self.state)
-        self.led_off(cfg.RECORD_STATUS)
         
         self.save_recording()
     
@@ -515,10 +528,8 @@ class Elephant(threading.Thread):
             self.playbackservice = PlaybackService.PlaybackService(name="PlaybackService", 
                                                           elephant=self, continuous=self.continuous_playback_enabled)
             self.playbackservice.start()
-            self.led_on(cfg.PLAY_STATUS)
         else:
             self.playbackservice.pause_event.set()
-            self.led_blink_on(cfg.PLAY_STATUS)
        
         
     def e_continuous_playback_enable(self, event_data): 
@@ -548,7 +559,6 @@ class Elephant(threading.Thread):
     def e_playing_paused(self, event_data):
         print(f"Enter {self.state}")
         self.playbackservice.pause_event.clear() 
-        self.led_blink_on(cfg.PLAY_STATUS)
 
     def x_playing_paused(self, event_data): 
         #print(f"Exit {self.state}")
@@ -556,8 +566,6 @@ class Elephant(threading.Thread):
 
     def e_recording(self, event_data): 
         
-        self.led_on(cfg.RECORD_STATUS)
-            
         recordingService = RecordingService.RecordingService("RecordingService", 
                                                              self, False)
         recordingService.start()
@@ -568,15 +576,13 @@ class Elephant(threading.Thread):
         #print(f"Exit {self.state}")
 
     def e_recording_paused(self, event_data):
-        self.led_blink_on(cfg.RECORD_STATUS)
+       pass
 
     def x_recording_paused(self, event_data): 
         pass
         #print(f"Exit {self.state}")
 
     def e_saving_recording(self, event_data) : 
-        self.led_off(cfg.RECORD_STATUS)
-       
         self.save_recording()
        
 
@@ -587,8 +593,6 @@ class Elephant(threading.Thread):
         print(event_data.transition)
         if self.playbackservice != None:
             self.playbackservice = None
-        self.led_off(cfg.RECORD_STATUS)
-        self.led_off(cfg.PLAY_STATUS)
         load_kernel_module('g_midi')
 
     def x_stopped(self, event_data) :
@@ -735,65 +739,36 @@ class Elephant(threading.Thread):
     def x_mass_storage_management(self, event_data): 
         remove_kernel_module('g_mass_storage')
         
+   
     #
     # Start up threads that manage LED states if necessary.    
     def setup_led_managers(self):
         print("Setting up LED manager threads, if any...")
         active_mgr_list = []
         
-        for manager_name, pin in cfg.led_manager_params:
-            print(f"Checking {manager_name}, pin={pin}")
-            if pin != None:
-                print(f"Setting up {manager_name}, pin={pin}")
-                mgr_thread = LEDManager.LEDManager(manager_name, pin)
+        for manager_name in cfg.led_dict.keys():
+            print(f"Checking {manager_name}")
+            
+            pins=cfg.led_dict[manager_name]
+            
+            if pins[0] != None or pins[1] != None:
+                print(f"Adding LED manager {manager_name}")
+                mgr_thread = MultiColorLEDManager.MultiColorLEDManager(manager_name)
                 mgr_thread.start()
                 mgr_tuple = (manager_name, mgr_thread)
                 active_mgr_list.append(mgr_tuple)
     
         if len(active_mgr_list) > 0:
             self.active_led_managers = dict(active_mgr_list)
-            
-            time.sleep(1)
 
-            for entry in self.active_led_managers:
-                self.led_on(entry)
-                time.sleep(.5)
-                self.led_off(entry)
-                time.sleep(.5)
-                
-        
-    def led_blink_on(self, mgr_name):
-        self.led_dynamic_op(mgr_name, 'led_blink_on')
     
-    def led_blink_off(self, mgr_name):
-       self.led_dynamic_op(mgr_name, 'led_blink_off')
-    
-    def led_on(self, mgr_name):
-        self.led_dynamic_op(mgr_name, 'led_on')
-    
-    def led_off(self, mgr_name):
-        self.led_dynamic_op(mgr_name, 'led_off')
-        
-    def led_stop(self, mgr_name):
-        self.led_dynamic_op(mgr_name, 'led_stop')
-     
-    def led_dynamic_op(self, mgr_name, op):   
-        if self.active_led_managers == None:
-            return;
-        
-        mgr_thread = self.active_led_managers[mgr_name]
-        
-        if mgr_thread == None:
-            return
-        
-        try:
-            getattr(mgr_thread, op)()
-        except Exception as e:
-            print(f"Failed to execute {mgr_name}.{op}: {e}") 
-        
+       
+    def all_events_callback(self, event_data):
+        to_state=event_data.transition.dest 
+        print(f"################# Transition to {to_state} ##################")
+        self.set_indicator_for_state(to_state)
         
     def setup_state_machine(self):
-        
         self.display_service = DisplayService.DisplayService("Display", self)
         self.display_service.start()
         
@@ -802,8 +777,9 @@ class Elephant(threading.Thread):
         except Exception as e:
             print(f"setup_led_managers failed: {e}")
         
-        self.machine = Machine(self, states=states, transitions=transitions, 
-                               initial = S_STOPPED, send_event=True)
+        self.machine = Machine(self, states=states, transitions=transitions,
+                               before_state_change=self.all_events_callback, 
+                               initial = S_READY, send_event=True)
         
         self.event_queue = queue.Queue(10)
     
@@ -828,7 +804,8 @@ class Elephant(threading.Thread):
         # Open up the input and output ports.  It's OK to run
         # without an output port but we must have an input port.
         
-        self.led_on(cfg.ELEPHANT_ONLINE)
+        self.set_indicator_for_state(S_READY)
+        self.set_indicator_for_state(S_ELEPHANT_ONLINE)
         
         if cfg.AutoRecordEnabled:
             self.raise_event(E_AUTO_RECORD_BUTTON)
