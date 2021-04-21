@@ -16,6 +16,9 @@ from queue import Empty
 import ElephantCommon
 
 class TCPReadcharThread(threading.Thread):
+    
+    logger=logging.getLogger(__name__)
+    
     first_repeat_wait = .5
     normal_repeat_wait = .1
     total_repeat_count = 2
@@ -37,16 +40,16 @@ class TCPReadcharThread(threading.Thread):
         # Bind the socket to the address given on the command line
         server_name = socket.gethostname()
         server_address = (server_name, 10000)
-        print(f"starting up on {server_address}")
+        self.logger.info(f"starting up on {server_address}")
         
         sock.bind(server_address)
         sock.listen(1)
         
         while True:
-            print('waiting for a connection')
+            self.logger.info('waiting for a connection')
             connection, client_address = sock.accept()
             try:
-                print(f"client connected: {client_address}")
+                self.logger.info(f"client connected: {client_address}")
                 if self.elephant != None:
                     self.elephant.set_indicator_for_state(ElephantCommon.S_CLIENT_CONNECTED)
                 message = ""
@@ -54,13 +57,13 @@ class TCPReadcharThread(threading.Thread):
                     data = connection.recv(1)
                     if len(data) == 0:
                         break
-                    print(f"Data length={len(data)}")
-                    print(f"received: {data.decode('utf-8')}")
+                    self.logger.debug(f"Data length={len(data)}")
+                    self.logger.debug(f"received: {data.decode('utf-8')}")
                     self.output_queue.put(data.decode('utf-8'))
             except Exception as e:
-                print(f"Exception receiving: {e}")
+                self.logger.exception(f"Exception receiving: {e}")
             finally:
-                print("Closing connection...")
+                self.logger.info(f"Closing connection {client_address}")
                 self.elephant.set_indicator_for_state(ElephantCommon.S_ELEPHANT_ONLINE)
                 connection.close()
                       

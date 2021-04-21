@@ -409,6 +409,14 @@ Once you’re satisfied that all is well, try a dismount:
 modprobe -r g_mass_storage
 
 
+On OrangePI, need the following in /etc/modprobe.d/g_mass_storage.conf
+options g_mass_storage file=/elephant.bin
+options g_mass_storage stall=0
+options g_mass_storage ro=0
+options g_mass_storage iProduct=Elephant
+options g_mass_storage iManufacturer=Ganesha
+
+
 
 ##########################################################
 # Advertise tcp/ip port for midi machine control (MMC) via avahi on Linux

@@ -41,6 +41,8 @@ E_CONTINUOUS_PLAYBACK_ENABLE='E_ContinuousPlaybackEnable'
 E_CONTINUOUS_PLAYBACK_DISABLE='E_ContinuousPlaybackDisable'
 E_TRACKING_SILENCE_ENABLE='E_TrackingSilenceEnable'
 E_TRACKING_SILENCE_DISABLE='E_TrackingSilenceDisable'
+E_MASS_STORAGE_DISABLE='E_MassStorageDisable'
+E_MASS_STORAGE_DISABLED='E_MassStorageDisabled'
 
 #
 # This table maps characters that can be typed
@@ -112,7 +114,8 @@ S_SEEKING_BACK='SeekingBack'
 S_WAITING_FOR_MIDI='WaitingForMIDI'
 S_AUTO_RECORDING='Recording Auto'
 S_AUTO_SAVING='Saving Auto'
-S_MASS_STORAGE_MANAGEMENT='MassStorage Management'
+S_MASS_STORAGE_ENABLED='MassStorage Enabled'
+S_MASS_STORAGE_DISABLING='MassStorage Disabling'
 S_CONTINUOUS_PLAYBACK_ENABLE='ContinuousEnabled Playback'
 S_CONTINUOUS_PLAYBACK_DISABLE='ContinuousDisabled Playback'
 S_TRACKING_SILENCE_ENABLE='TrackingSilenceEnable'

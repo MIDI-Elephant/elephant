@@ -2,13 +2,15 @@ import threading
 import queue
 import time
 import re
+import logging
 import DisplayMessage
 import Elephant
+import config_elephant as cfg
 
-if Elephant.cfg.use_lcd:
+if cfg.use_lcd:
     try:
         import i2clcd as LCD
-        Elephant.cfg.use_lcd = True
+        cfg.use_lcd = True
         lcd = LCD.i2clcd(i2c_bus=0, i2c_addr=0x27, lcd_width=20)
         lcd.init()
         lcd.set_backlight(True)
@@ -19,6 +21,9 @@ if Elephant.cfg.use_lcd:
 
 
 class DisplayService(threading.Thread):
+    
+    logger=logging.getLogger(__name__)
+    
     def __init__(self, name, elephant=None):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
@@ -36,23 +41,23 @@ class DisplayService(threading.Thread):
             lcd.print_line(text, line)
 
     def display_line(self, text, clear=False, pause=0, line=0):
-        if Elephant.cfg.use_lcd and clear:
+        if cfg.use_lcd and clear:
             lcd.clear()
        
-        if Elephant.cfg.use_lcd:
+        if cfg.use_lcd:
             self.lprint(text, line)
         
-        print(text)
+        self.logger.info(text)
             
         if pause > 0:
             time.sleep(pause)
-            if Elephant.cfg.use_lcd and clear:
+            if cfg.use_lcd and clear:
                 lcd.clear()
             
 
     def display(self, text, clear=False, pause=0):
         
-        if Elephant.cfg.use_lcd and clear:
+        if cfg.use_lcd and clear:
             lcd.clear()
         
         # Convert state to individual words
@@ -61,14 +66,14 @@ class DisplayService(threading.Thread):
         for line in text:
             if line == "" or line is None:
                 continue
-            if Elephant.cfg.use_lcd:
+            if cfg.use_lcd:
                 self.lprint(text[line_number], line_number)
-            print(text[line_number])
+            self.logger.info(text[line_number])
             line_number += 1
             
         if pause > 0:
             time.sleep(pause)
-            if Elephant.cfg.use_lcd and clear:
+            if cfg.use_lcd and clear:
                 lcd.clear()
             
     def display_message(self, text, clear=False, pause=0):
@@ -77,16 +82,16 @@ class DisplayService(threading.Thread):
         try:
             self.message_queue.put_nowait(message)
         except Exception as e:
-            print(f"Exception queueing message: {e}")
+            self.logger.exception(f"Exception queueing message: {e}")
             
     def run(self):
          while True:
             message = self.message_queue.get()
             
             try:
-                print(f"Displaying message {message}")
+                self.logger.debug(f"Displaying message {message}")
                 self.display(message.text,
                              clear=message.clear, pause=message.pause)
             except Exception as exception:
-                print(exception)
+                self.logger.exception(exception)
             

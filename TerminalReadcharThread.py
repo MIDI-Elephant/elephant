@@ -18,6 +18,9 @@ from ElephantCommon import held_character_release_map as held_character_release_
 
 
 class TerminalReadcharThread(threading.Thread):
+    
+    logger=logging.getLogger(__name__)
+    
     first_repeat_wait = .5
     normal_repeat_wait = .1
     total_repeat_count = 2
@@ -27,7 +30,7 @@ class TerminalReadcharThread(threading.Thread):
        threading.Thread.__init__(self)
        self.name = name
        self.output_queue=queue.Queue(10)
-       print(f"TerminalReadcharThread: self={self}, queue={self.output_queue}")
+       self.logger.debug(f"TerminalReadcharThread: self={self}, queue={self.output_queue}")
        
     def get_output_queue(self):
         return self.output_queue
@@ -55,15 +58,15 @@ class TerminalReadcharThread(threading.Thread):
     
     def run(self):
         
-        print("TerminalReadcharThread is running...")
+        self.logger.debug("TerminalReadcharThread is running...")
         use_myreadchar = False
         try:
             fd = sys.stdin.fileno()
             old_settings = termios.tcgetattr(fd)
-            print("using readchar.readchar()")
+            self.logger.debug("using readchar.readchar()")
         except Exception as e:
-            print(f"Exception getting settings.. {e}")
-            print("using myreadchar()")
+            self.logger.debug(f"Exception getting settings.. {e}")
+            self.logger.debug("using myreadchar()")
             use_myreadchar = True
       
         
@@ -74,8 +77,7 @@ class TerminalReadcharThread(threading.Thread):
                 else:
                     char = readchar.readchar()
             except Exception as exception:
-                print("readchar exception")
-                print(exception)
+                self.logger.exception(f"readchar exception: {exception}")
                 continue
 
             self.output_queue.put(char)

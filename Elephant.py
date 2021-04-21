@@ -6,12 +6,12 @@
 #######################################
 import asyncio
 from datetime import datetime
-import logging
 import pdb
 from queue import Empty
 import queue
 import sys 
 import threading
+import logging
 from time import sleep as sleep
 import time
 
@@ -36,9 +36,6 @@ import RecordingService
 
 import config_elephant as cfg
 
-eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
-
-
 try:
     import i2clcd as LCD
     lcd = LCD.i2clcd(i2c_bus=0, i2c_addr=0x27, lcd_width=20)
@@ -50,8 +47,6 @@ except:
 try:
     import OPi.GPIO as GPIO
     import GPIOReadcharThread
-    
-    eventThreadPlugins.append('GPIOReadcharThread')
 except:
     pass
 
@@ -60,19 +55,6 @@ try:
 except:
     pass
 
-
-def lprintX(text, line=0):
-    if line == 0:
-        lcd.clear()
-    lcd.print_line(text, line)
-
-def displayX(text, line=0):
-    if Elephant.cfg.use_lcd:
-        lprint(text, line)
-        print(text)
-    else:
-        print(text)
-
 def module_is_loaded(module):
     if cfg.use_kmod:
         k = kmod.Kmod()
@@ -80,15 +62,17 @@ def module_is_loaded(module):
             if tuple[0] == module:
                 return True
         return False
+    else:
+        return False
+   
     
 def load_kernel_module(module):
     if cfg.use_kmod:
         k = kmod.Kmod()
-        if (not module_is_loaded(module)):
-            k.modprobe(module)
+        k.modprobe(module)
     
 def remove_kernel_module(module):
-    if Elephant.cfg.use_lcd:
+    if cfg.use_kmod:
         k = kmod.Kmod()
         if (module_is_loaded(module)):
             k.rmmod(module)
@@ -197,9 +181,12 @@ states = [
               on_enter=['e_tracking_silence_disable']
               ),
           State(
-              name=S_MASS_STORAGE_MANAGEMENT,
-              on_enter=['e_mass_storage_management'],
-              on_exit=['x_mass_storage_management'],)
+              name=S_MASS_STORAGE_ENABLED,
+              on_enter=['e_mass_storage_enable'],
+              on_exit=['x_mass_storage_management'],),
+          State(
+              name=S_MASS_STORAGE_DISABLING,
+              on_enter=['e_mass_storage_disable'])
           ]
 
 transitions = [
@@ -210,9 +197,10 @@ transitions = [
         [ E_SKIP_FORWARD, S_READY, S_SKIP_FORWARD_WHILE_STOPPED ],
         [ E_NEXT_FILE, S_SKIP_FORWARD_WHILE_STOPPED, S_READY ],
         [ E_NO_FILE, S_SKIP_FORWARD_WHILE_STOPPED, S_READY ],
-        [ E_SWITCH_MODE, S_READY, S_MASS_STORAGE_MANAGEMENT],
-        [ E_SWITCH_MODE_RELEASED, S_MASS_STORAGE_MANAGEMENT, S_MASS_STORAGE_MANAGEMENT],
-        [ E_SWITCH_MODE, S_MASS_STORAGE_MANAGEMENT, S_READY],
+        [ E_SWITCH_MODE, S_READY, S_MASS_STORAGE_ENABLED],
+        [ E_SWITCH_MODE_RELEASED, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_ENABLED],
+        [ E_SWITCH_MODE, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_DISABLING],
+        [ E_MASS_STORAGE_DISABLED, S_MASS_STORAGE_DISABLING, S_READY],
         [ E_SWITCH_MODE_RELEASED, S_READY, S_READY],
         [ E_CONTINUOUS_PLAYBACK_ENABLE, S_READY, S_CONTINUOUS_PLAYBACK_ENABLE],
         [ E_CONFIG_COMPLETE, S_CONTINUOUS_PLAYBACK_ENABLE, S_READY],
@@ -294,6 +282,8 @@ signal.signal(signal.SIGQUIT, dumpstacks)
 
 class Elephant(threading.Thread):
     
+    logger=logging.getLogger(__name__)
+    
     def __init__(self, name, state_machine=None, event_queue=None):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
@@ -334,7 +324,7 @@ class Elephant(threading.Thread):
                     if led != None:
                         led.indicator_on(indicator[1])
             except Exception as e:
-                print(f"No indicator found for state {state}, {e}")
+                logger.warn(f"No indicator found for state {state}, {e}")
         else:
             #print(f"No LED managers are active.")
             pass
@@ -343,7 +333,7 @@ class Elephant(threading.Thread):
         status_text = []
         status_text.append(self.state)
         
-        if self.state not in [S_RECORDING, S_AUTO_RECORDING, S_WAITING_FOR_MIDI, S_MASS_STORAGE_MANAGEMENT]:
+        if self.state not in [S_RECORDING, S_AUTO_RECORDING, S_WAITING_FOR_MIDI, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_DISABLING]:
             file_tuple = self.filemanager.get_current_file_tuple()
             if file_tuple != None:
                 seconds = "{:.1f}".format(file_tuple[1])
@@ -397,10 +387,14 @@ class Elephant(threading.Thread):
         self.inputPort = inputPort
         
     def get_input_port(self):
+        self.logger.debug("Entering get_input_port()")
         if self.inputPort is None:
+            self.logger.debug(f"Checking for a port to open in: {cfg.inPortNames}")
             for name in cfg.inPortNames:
+                self.logger.debug(f"Trying to connect to {name}")
                 try:
                     self.inputPort = mido.open_input(name)
+                    self.logger.debug(f"Successfully connected input port={name}")
                     break
                 except Exception as e:
                    pass
@@ -421,6 +415,7 @@ class Elephant(threading.Thread):
     def get_output_port(self):
         if self.outputPort is None:
             self.outputPort = mido.open_output(cfg.outPortName)
+            self.logger.debug(f"Successfully connected output port={cfg.outPortName}")
         return self.outputPort
     
     
@@ -428,7 +423,7 @@ class Elephant(threading.Thread):
         try:
             self.event_queue.put(event_name)
         except Exception as exception:
-            print(exception)    
+            logger.exception(exception)    
     
     #
     # If we are tracking 'silence', save a file that represents
@@ -437,7 +432,7 @@ class Elephant(threading.Thread):
     def save_silence(self):  
         filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}-S.mid"
         file_to_save=f"{cfg.midi_base_directory}/{filename}"
-        print(f"Saving silence of {self.seconds_of_silence} to {file_to_save}")
+        self.logger.debug(f"Saving silence of {self.seconds_of_silence} to {file_to_save}")
         midifile = mido.MidiFile(filename=None, file=None, type=0, ticks_per_beat=20000) 
         track = mido.MidiTrack()
         midifile.tracks.append(track)
@@ -462,7 +457,7 @@ class Elephant(threading.Thread):
         try:
             filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}.mid"
             file_to_save=f"{cfg.midi_base_directory}/{filename}"
-            print(f"File={file_to_save}")
+            self.logger.debug(f"File={file_to_save}")
             self.midifile.save(file_to_save) 
             self.last_saved_file = filename
             self.set_midi_file(None)
@@ -478,10 +473,9 @@ class Elephant(threading.Thread):
     # State machine events are defined here        
     #####################################################
     def e_default(self, event_data): 
-        print(event_data.transition)
+        pass
         
     def e_waiting_for_midi(self, event_data): 
-        print(event_data.transition)
         midiEventService = MIDIEventService.MIDIEventService(name="MIDIEventService", 
                                                 elephant=self)
         midiEventService.start()
@@ -499,15 +493,12 @@ class Elephant(threading.Thread):
         pass
         
     def e_auto_saving(self, event_data): 
-        print(self.state)
-        
         self.save_recording()
     
     def x_auto_saving(self, event_data): 
         pass
     
     def e_playing(self, event_data): 
-        print(event_data.transition)
         if event_data.transition.source != S_PLAYING_PAUSED:
             self.playbackservice = PlaybackService.PlaybackService(name="PlaybackService", 
                                                           elephant=self, continuous=self.continuous_playback_enabled)
@@ -517,7 +508,6 @@ class Elephant(threading.Thread):
        
         
     def e_continuous_playback_enable(self, event_data): 
-        print(event_data.transition)
         self.continuous_playback_enabled=True
         self.raise_event(E_CONFIG_COMPLETE)
         
@@ -715,28 +705,37 @@ class Elephant(threading.Thread):
         self.tracking_silence_enabled=False
         self.raise_event(E_CONFIG_COMPLETE)
     
-    def e_mass_storage_management(self, event_data): 
-        print(event_data.transition)
-        remove_kernel_module('g_midi')
+    def e_mass_storage_enable(self, event_data): 
+        print(f"e_mass_storage_enable: {event_data.transition}")
         load_kernel_module('g_mass_storage')
-
-    def x_mass_storage_management(self, event_data): 
+        remove_kernel_module('g_midi')
+        
+    def e_mass_storage_disable(self, event_data): 
+        print(f"e_mass_storage_disable: {event_data.transition}")
+        load_kernel_module('g_midi')
         remove_kernel_module('g_mass_storage')
+        self.raise_event(E_MASS_STORAGE_DISABLED)
+       
+
+    def x_mass_storage_management(self, event_data):
+        print(event_data.transition)
+
+       
         
    
     #
     # Start up threads that manage LED states if necessary.    
     def setup_led_managers(self):
-        print("Setting up LED manager threads, if any...")
+        self.logger.debug("Setting up LED manager threads, if any...")
         active_mgr_list = []
         
         for manager_name in cfg.led_dict.keys():
-            print(f"Checking {manager_name}")
+            self.logger.debug(f"Checking {manager_name}")
             
             pins=cfg.led_dict[manager_name]
             
             if pins[0] != None or pins[1] != None:
-                print(f"Adding LED manager {manager_name}")
+                self.logger.debug(f"Adding LED manager {manager_name}")
                 mgr_thread = MultiColorLEDManager.MultiColorLEDManager(manager_name)
                 mgr_thread.start()
                 mgr_tuple = (manager_name, mgr_thread)
@@ -748,6 +747,7 @@ class Elephant(threading.Thread):
     
        
     def all_events_callback(self, event_data):
+        self.logger.debug(event_data.transition)
         to_state=event_data.transition.dest 
         self.set_indicator_for_state(to_state)
         
@@ -758,7 +758,7 @@ class Elephant(threading.Thread):
         try:
             self.setup_led_managers()
         except Exception as e:
-            print(f"setup_led_managers failed: {e}")
+            logger.exception(f"setup_led_managers failed: {e}")
         
         self.machine = Machine(self, states=states, transitions=transitions,
                                before_state_change=self.all_events_callback, 
@@ -766,7 +766,8 @@ class Elephant(threading.Thread):
         
         self.event_queue = queue.Queue(10)
     
-        for plugin in eventThreadPlugins:
+        for plugin in cfg.eventThreadPlugins:
+            self.logger.debug(f"Starting event thread using the '{plugin}' plugin")
             event_thread = EventThread.EventThread(name=f"{plugin}.events",
                                        state_machine=self,
                                        event_queue=self.event_queue,
@@ -798,11 +799,11 @@ class Elephant(threading.Thread):
                 logging.debug('Getting ' + str(trigger_method)
                               + ' : ' + str(self.event_queue.qsize()) + ' items in queue')
                 try:
-                    print(f"Executing trigger method {trigger_method}")
+                    self.logger.debug(f"Executing trigger method {trigger_method}")
                     getattr(self.state_machine, trigger_method)()
                     self.display_status(pause=.2)
                 except Exception as exception:
-                    print(exception)
+                    self.logger.debug(exception)
             return
         except Exception as e:
             self.display_exception(e)
@@ -832,5 +833,5 @@ if __name__ == '__main__':
         elephant_thread.start()
         
     except KeyboardInterrupt:
-        print("Interrupted")
+        logger.exception("Interrupted")
         sys.exit(0)

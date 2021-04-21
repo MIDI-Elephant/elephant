@@ -11,6 +11,9 @@ from ElephantCommon import *
 
 
 class KeypadThread(threading.Thread):
+    
+    logger=logging.getLogger(__name__)
+    
     def __init__(self, name, command_data_plugin_name=None, elephant=None):
         threading.Thread.__init__(self)
         self.name = name
@@ -58,7 +61,7 @@ class KeypadThread(threading.Thread):
         self.readchar_thread=readchar(self, elephant=self.elephant)
         self.readchar_thread.start()
         
-        print("KeypadThread is running...")
+        self.logger.debug("KeypadThread is running...")
         seek_event = False
         checking_for_seek = False
         last_char_pressed_time = time.perf_counter()
@@ -69,7 +72,7 @@ class KeypadThread(threading.Thread):
         while True:
             buttonChar = self.input_queue.get()
             if (not buttonChar in event_map.keys()):
-                print(f"Invalid character {buttonChar}")
+                self.logger.debug(f"Invalid character {buttonChar}")
                 continue
             
             # If it's not a character that can be repeated
@@ -77,7 +80,7 @@ class KeypadThread(threading.Thread):
                 try:
                     self.output_queue.put(buttonChar)
                 except Exception as exception:
-                    print(exception)
+                    self.logger.exception(exception)
                  
             else:
                 # If it's a held character, map it to the appropriate character

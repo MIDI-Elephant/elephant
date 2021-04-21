@@ -62,17 +62,17 @@ class MidiFileManager():
         self.current_tuples = []
         glob_list = glob.glob(f"{Elephant.cfg.midi_base_directory}/*.mid")
         
-        print(f"glob_list={glob_list}")
+        #print(f"glob_list={glob_list}")
         
         self.current_list = sorted(glob.glob(f"{Elephant.cfg.midi_base_directory}/*.mid"), reverse=False)
         
-        print(self.current_list)
+        #print(self.current_list)
         
         for midifile_path in self.current_list:
             try:
                 midifile = MidiFile(midifile_path)
                 new_file_tuple = tuple((midifile_path, midifile.length))
-                print(f"Appending: {new_file_tuple}")
+                #print(f"Appending: {new_file_tuple}")
                 self.current_tuples.append(new_file_tuple)
             except Exception as e:
                 print(f"Exception opening {midifile_path}: {e}")
@@ -163,7 +163,7 @@ class MidiFileManager():
         try:
             filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}.mid"
             file_to_save=f"{Elephant.cfg.midi_base_directory}/{filename}"
-            print(f"File={file_to_save}")
+            #print(f"File={file_to_save}")
             self.midifile.save(file_to_save) 
             self.last_saved_file = filename
             self.set_midi_file(None)

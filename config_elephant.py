@@ -2,12 +2,19 @@
 
 import sys
 import getopt
+import logging
+
+DEFAULT_LOG_LEVEL=logging.INFO
+
+logging.basicConfig(format='%(levelname)s:%(name)s: %(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=DEFAULT_LOG_LEVEL)
 from ElephantCommon import *
 
+logger=logging.getLogger('Configuration')
+
 try:
-    print(f"Already configured for platform {__platform__}")
+    logger.info(f"Already configured for platform {__platform__}")
 except Exception as e:
-    print("First time configuration!")
+    logger.info("First time configuration!")
     __platform__='headless'
     
     # Pop first arg which is executable name
@@ -19,16 +26,20 @@ except Exception as e:
             if opt in ("-p", "--platform"):
                 __platform__=arg
     except getopt.GetoptError:
-        print(f"{argv[0]} --platform=[headless|dev|mac]")
-        print(f"No platform provided, continuing with default=headless")
+        logger.error(f"{argv[0]} --platform=[headless|dev|mac]")
+        logger.error(f"No platform provided, continuing with default=headless")
     
    
        
     
-    print(f"Configuring Elephant for platform '{__platform__}'")
+    logger.info(f"Configuring Elephant for platform '{__platform__}'")
+    
+    #
+    # All platforms can get input from the terminal and via  a TCP connection
+    eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
     
     if __platform__ == "headless":
-    
+            
         AutoRecordEnabled=False
         Headless=True
         ContinuousPlaybackEnabled=False
@@ -38,7 +49,7 @@ except Exception as e:
         use_gpio = False
         use_kmod = True
         
-        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1 24:0',
+        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1 20:0',
                      'UM-ONE:UM-ONE MIDI 1 24:0', 'MIDI9/QRS PNOScan MIDI 1']
         outPortName='f_midi'
         midi_base_directory= '/mnt/usb_share'
@@ -47,17 +58,33 @@ except Exception as e:
         
         MAX_MIDI_IDLE_TIME_SECONDS=10
         
-        MIDI_GREEN=16
-        MIDI_RED=10
+        STATUS_GREEN=16
+        STATUS_RED=10
         
-        STATUS_GREEN=18
-        STATUS_RED=8
+        MIDI_GREEN=18
+        MIDI_RED=8
         
-       
-        MASS_STORAGE_TOGGLE=12
-       
-       
+        #
+        # These constants refer to the pin numbers on the 
+        # Orange Pi Zero LTS that correspond to buttons
+        # on a given hardware device.  Only the 'dev' and 'headless'
+        # platforms for Elephant have buttons so these do not
+        # need to be defined for other platforms
+        #
+        MASS_STORAGE_TOGGLE=12 # Pin used by button on headless platform to toggle mass storage
         
+        STOP_BOARD=None
+        PLAY_BOARD=None
+        RECORD_BOARD=None
+        AUTO_RECORD_BOARD=None
+        BACK_BOARD=None
+        FORWARD_BOARD=None
+        MASS_STORAGE_BOARD=12
+        
+        #
+        # The headless platform can get input from switches - but only one
+        #
+        eventThreadPlugins.append('GPIOReadcharThread')
         
     elif __platform__ == "dev":
         
@@ -83,6 +110,26 @@ except Exception as e:
         MIDI_GREEN=None  
         STATUS_GREEN=None 
         STATUS_RED=None
+        
+        #
+        # These constants refer to the pin numbers on the 
+        # Orange Pi Zero LTS that correspond to buttons
+        # on a given hardware device.  Only the 'dev' and 'headless'
+        # platforms for Elephant have buttons so these do not
+        # need to be defined for other platforms
+        #
+        STOP_BOARD=11
+        PLAY_BOARD=13
+        RECORD_BOARD=15
+        AUTO_RECORD_BOARD=19
+        BACK_BOARD=21
+        FORWARD_BOARD=23
+        MASS_STORAGE_BOARD=STOP_BOARD
+        
+        #
+        # The dev platform can get input from switches - all of the above
+        #
+        eventThreadPlugins.append('GPIOReadcharThread')
         
     elif __platform__ == "mac":
         
@@ -113,9 +160,17 @@ except Exception as e:
         MIDI_GREEN=None  
         STATUS_GREEN=None 
         STATUS_RED=None
+        
+        STOP_BOARD=None
+        PLAY_BOARD=None
+        RECORD_BOARD=None
+        AUTO_RECORD_BOARD=None
+        BACK_BOARD=None
+        FORWARD_BOARD=None
+        MASS_STORAGE_BOARD=None
     
     else:
-        print(f"Unsupported platform: {__platform__}")
+        logger.fatal(f"Unsupported platform: {__platform__}")
         sys.exit(2)
         
     RECORD_STATUS='record'
@@ -128,6 +183,27 @@ except Exception as e:
                           (ELEPHANT_ONLINE, STATUS_GREEN),
                           (MASS_STORAGE, STATUS_RED)]
 
+
+all_board_pins = {
+    STOP_BOARD,
+    PLAY_BOARD,
+    RECORD_BOARD,
+    AUTO_RECORD_BOARD,
+    BACK_BOARD,
+    FORWARD_BOARD,
+    MASS_STORAGE_BOARD
+    }
+
+
+board_pin_to_char = {
+    STOP_BOARD          : "s",
+    PLAY_BOARD          : "p",
+    RECORD_BOARD        : "r",
+    AUTO_RECORD_BOARD   : "a",
+    BACK_BOARD          : "b",
+    FORWARD_BOARD       : "f",
+    MASS_STORAGE_BOARD  : "X"  
+}
 
 DEFAULT_BLINK_DELAY=.75
 
@@ -168,7 +244,7 @@ all_led_colors = [ c_green, c_red, c_yellow, c_orange ]
 color_dict = {
                 c_green : (.0083, 0), 
                 c_red : (0, .0083), 
-                c_yellow : (.00680, .00200),
+                c_yellow : (.00380, .00500),
                 c_orange : (.00275, .00623) 
                 }
 led_dict = {
@@ -194,9 +270,9 @@ indicator_for_state_dict = {
     S_AUTO_RECORDING : (MIDI_LED, c_red),
     S_SAVING_RECORDING : (MIDI_LED, c_orange),
     S_AUTO_SAVING : (MIDI_LED, c_orange),
+    S_MASS_STORAGE_ENABLED : (MIDI_LED, c_orange_flash),
     S_READY : (MIDI_LED, c_green),
     S_MIDI_ERROR : (MIDI_LED, c_red_flash),
-    S_MASS_STORAGE_MANAGEMENT : (ELEPHANT_LED, c_orange_blink),
     S_ELEPHANT_ONLINE : (ELEPHANT_LED, c_green),
     S_CLIENT_CONNECTED : (ELEPHANT_LED, c_green_flash),
     S_ELEPHANT_ERROR : (ELEPHANT_LED, c_red_flash)
@@ -204,7 +280,7 @@ indicator_for_state_dict = {
 
 
         
-print(f"Platform '{__platform__}' was successfully configured.")
+logger.info(f"Platform '{__platform__}' was successfully configured.")
     
         
     

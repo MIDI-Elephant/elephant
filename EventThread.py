@@ -7,6 +7,7 @@ from queue import Empty
 import time
 import KeypadThread
 from ElephantCommon import *
+import config_elephant as cfg
 
 
 #
@@ -21,6 +22,9 @@ from ElephantCommon import *
 
 #
 class EventThread(threading.Thread):
+    
+    logger=logging.getLogger(__name__)
+    
     def __init__(self, name, 
                  state_machine=None, event_queue=None,
                  command_data_plugin_name='TerminalReadcharThread'):
@@ -63,7 +67,7 @@ class EventThread(threading.Thread):
     
 
     def run(self):
-        print(f"EventThread for {self.name} started...")
+        self.logger.debug(f"EventThread for {self.name} started...")
         
        
         keypadThread = KeypadThread.KeypadThread(self.command_data_plugin_name, 
@@ -72,7 +76,7 @@ class EventThread(threading.Thread):
         
         keypadThread.start()
         
-        print("EventThread is running...")
+        self.logger.debug("EventThread is running...")
         seek_event = False
         checking_for_seek = False
         last_char_pressed_time = time.perf_counter()
@@ -85,7 +89,7 @@ class EventThread(threading.Thread):
                 trigger_method = event_map[buttonChar]
                 self.event_queue.put(trigger_method)
             except Exception as exception:
-                print(exception)
+                self.logger.exception(exception)
 
         return
 
