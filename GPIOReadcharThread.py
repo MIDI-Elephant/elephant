@@ -6,10 +6,9 @@ import KeypadThread
 import queue
 import threading
 import atexit
+import logging
 from config_elephant import *
 
-
-char_queue=queue.Queue(10)
     
 def setup_gpio():
     
@@ -22,6 +21,8 @@ def setup_gpio():
     
 class GPIOReadcharThread(threading.Thread):
     
+    logger=logging.getLogger(__name__)
+    
     first_repeat_wait = .1
     normal_repeat_wait = .1
     total_repeat_count = 4
@@ -30,7 +31,7 @@ class GPIOReadcharThread(threading.Thread):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
        self.name = name
-       self.output_queue=char_queue
+       self.output_queue=queue.Queue(50)
        self.elephant=elephant
        atexit.register(self.cleanup)
      
@@ -49,12 +50,15 @@ class GPIOReadcharThread(threading.Thread):
                     if pin == None:
                         continue
                     if GPIO.input(pin):
-                       char = board_pin_to_char[pin]
-                       self.output_queue.put(char)
-                       if (pin != FORWARD_BOARD and pin != BACK_BOARD
-                           and pin != STOP_BOARD):
-                           while GPIO.input(pin):
-                               pass
+                        #sleep(.03)
+                        if GPIO.input(pin):
+                           char = board_pin_to_char[pin]
+                           self.logger.debug(f"Putting char '{char}' into output queue")
+                           self.output_queue.put(char)
+                           # Debounce...
+                           if (pin != FORWARD_BOARD and pin != BACK_BOARD and pin != STOP_BOARD):
+                               while GPIO.input(pin):
+                                   pass
                             
             except Exception as e:
                 if isinstance(e, KeyboardInterrupt):

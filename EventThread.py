@@ -35,37 +35,6 @@ class EventThread(threading.Thread):
        self.name = name
        self.command_data_plugin_name=command_data_plugin_name
 
-
-    def is_held_char(self, charToCheck):
-         repeat_count = 0
-         first_repeat_wait = .55
-         normal_repeat_wait = .1
-         repeat_wait = first_repeat_wait
-         while True:
-            try: 
-                buttonChar = self.char_queue.get(timeout=repeat_wait)
-            except Empty as empty:
-                return False
-
-            if (buttonChar != charToCheck):
-                return False
-
-            repeat_count  += 1
-            repeat_wait = normal_repeat_wait
-
-            if repeat_count == 2:
-                return True
-
-    def is_held_char_timeout(self, charToCheck):
-        while True:
-            try: 
-                buttonChar = self.characterQueue.get(timeout=0.1)
-            except Exception as exception:
-                return True
-
-        return False
-    
-
     def run(self):
         self.logger.debug(f"EventThread for {self.name} started...")
         

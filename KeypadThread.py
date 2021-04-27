@@ -17,7 +17,7 @@ class KeypadThread(threading.Thread):
     def __init__(self, name, command_data_plugin_name=None, elephant=None):
         threading.Thread.__init__(self)
         self.name = name
-        self.output_queue=queue.Queue(10)
+        self.output_queue=queue.Queue(50)
         self.readchar_thread=None
         self.input_queue=None
         self.command_data_plugin_name=command_data_plugin_name
@@ -42,6 +42,7 @@ class KeypadThread(threading.Thread):
         repeat_wait = self.readchar_thread.normal_repeat_wait
 
         if repeat_count == self.readchar_thread.total_repeat_count:
+            #print(f"#### IS_REPEAT_CHAR=True, char='{charToCheck}'")
             return True
 
     def is_held_char_timeout(self, charToCheck):
@@ -71,6 +72,7 @@ class KeypadThread(threading.Thread):
         
         while True:
             buttonChar = self.input_queue.get()
+            self.logger.debug(f"Got char '{buttonChar}' from queue")
             if (not buttonChar in event_map.keys()):
                 self.logger.debug(f"Invalid character {buttonChar}")
                 continue
@@ -100,4 +102,11 @@ class KeypadThread(threading.Thread):
 
         return
   
-       
+if __name__ == '__main__':   
+    
+    keypad=KeypadThread("test", 'GPIOReadcharThread', None)
+    keypad.start()
+    
+    while True:
+        time.sleep(1)
+        

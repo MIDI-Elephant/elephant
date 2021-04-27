@@ -43,6 +43,7 @@ E_TRACKING_SILENCE_ENABLE='E_TrackingSilenceEnable'
 E_TRACKING_SILENCE_DISABLE='E_TrackingSilenceDisable'
 E_MASS_STORAGE_DISABLE='E_MassStorageDisable'
 E_MASS_STORAGE_DISABLED='E_MassStorageDisabled'
+E_MASS_STORAGE_DISABLED_FROM_AUTORECORD='E_MassStorageDisabledFromAutorecord'
 
 #
 # This table maps characters that can be typed

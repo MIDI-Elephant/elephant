@@ -35,6 +35,7 @@ import PlaybackService
 import RecordingService
 
 import config_elephant as cfg
+import yappi
 
 try:
     import i2clcd as LCD
@@ -80,8 +81,8 @@ def remove_kernel_module(module):
 states = [
           State(
               name=S_READY, 
-              on_enter=['e_stopped'],
-              on_exit=['x_stopped']
+              on_enter=['e_ready'],
+              on_exit=['x_ready']
               ),
           State(
               name=S_PLAYING, 
@@ -110,13 +111,13 @@ states = [
               ), 
           State(
               name=S_SKIP_BACK_WHILE_STOPPED,
-              on_enter=['e_skip_back_while_stopped'],
-              on_exit=['x_skip_back_while_stopped']
+              on_enter=['e_skip_back_while_ready'],
+              on_exit=['x_skip_back_while_ready']
               ), 
           State(
               name=S_SKIP_FORWARD_WHILE_STOPPED,
-              on_enter=['e_skip_forward_while_stopped'],
-              on_exit=['x_skip_forward_while_stopped']
+              on_enter=['e_skip_forward_while_ready'],
+              on_exit=['x_skip_forward_while_ready']
               ),
           State(
               name=S_SKIP_BACK_WHILE_PLAYING,
@@ -182,8 +183,7 @@ states = [
               ),
           State(
               name=S_MASS_STORAGE_ENABLED,
-              on_enter=['e_mass_storage_enable'],
-              on_exit=['x_mass_storage_management'],),
+              on_enter=['e_mass_storage_enable']),
           State(
               name=S_MASS_STORAGE_DISABLING,
               on_enter=['e_mass_storage_disable'])
@@ -197,11 +197,11 @@ transitions = [
         [ E_SKIP_FORWARD, S_READY, S_SKIP_FORWARD_WHILE_STOPPED ],
         [ E_NEXT_FILE, S_SKIP_FORWARD_WHILE_STOPPED, S_READY ],
         [ E_NO_FILE, S_SKIP_FORWARD_WHILE_STOPPED, S_READY ],
+        #[ E_SWITCH_MODE_RELEASED, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_ENABLED],
+        #[ E_SWITCH_MODE_RELEASED, S_READY, S_READY],
         [ E_SWITCH_MODE, S_READY, S_MASS_STORAGE_ENABLED],
-        [ E_SWITCH_MODE_RELEASED, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_ENABLED],
         [ E_SWITCH_MODE, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_DISABLING],
         [ E_MASS_STORAGE_DISABLED, S_MASS_STORAGE_DISABLING, S_READY],
-        [ E_SWITCH_MODE_RELEASED, S_READY, S_READY],
         [ E_CONTINUOUS_PLAYBACK_ENABLE, S_READY, S_CONTINUOUS_PLAYBACK_ENABLE],
         [ E_CONFIG_COMPLETE, S_CONTINUOUS_PLAYBACK_ENABLE, S_READY],
         [ E_CONTINUOUS_PLAYBACK_DISABLE, S_READY, S_CONTINUOUS_PLAYBACK_DISABLE],
@@ -259,8 +259,13 @@ transitions = [
         [ E_RECORDING_SAVED, S_AUTO_SAVING, S_WAITING_FOR_MIDI ],
         [ E_STOP_BUTTON, S_AUTO_RECORDING, S_SAVING_RECORDING ],
         [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_READY],
-        [ E_STOP_BUTTON, S_WAITING_FOR_MIDI, S_READY ]
-        ]
+        [ E_STOP_BUTTON, S_WAITING_FOR_MIDI, S_READY ],
+        [ E_SWITCH_MODE, S_WAITING_FOR_MIDI, S_MASS_STORAGE_ENABLED],
+        [ E_SWITCH_MODE, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_DISABLING],
+        [ E_MASS_STORAGE_DISABLE, S_MASS_STORAGE_DISABLING, S_READY],
+        [ E_MASS_STORAGE_DISABLED_FROM_AUTORECORD, S_MASS_STORAGE_DISABLING, S_WAITING_FOR_MIDI],
+        [ E_AUTO_RECORD_BUTTON, S_READY, S_WAITING_FOR_MIDI]
+    ]
 
 import threading, sys, traceback
 
@@ -305,12 +310,14 @@ class Elephant(threading.Thread):
        
        self.playbackservice = None
        self.recordingservice = None
+       self.midiEventService = None
        
        self.continuous_playback_enabled=cfg.ContinuousPlaybackEnabled
        self.tracking_silence_enabled=cfg.TrackingSilenceEnabled
        
        
        self.seconds_of_silence=0.0
+       self.isRunning=True
      
     def set_indicator_for_state(self, state):
         if self.active_led_managers != None:
@@ -423,7 +430,7 @@ class Elephant(threading.Thread):
         try:
             self.event_queue.put(event_name)
         except Exception as exception:
-            logger.exception(exception)    
+            self.logger.exception(exception)    
     
     #
     # If we are tracking 'silence', save a file that represents
@@ -476,9 +483,9 @@ class Elephant(threading.Thread):
         pass
         
     def e_waiting_for_midi(self, event_data): 
-        midiEventService = MIDIEventService.MIDIEventService(name="MIDIEventService", 
+        self.midiEventService = MIDIEventService.MIDIEventService(name="MIDIEventService", 
                                                 elephant=self)
-        midiEventService.start()
+        self.midiEventService.start()
         
             
     def x_waiting_for_midi(self, event_data): 
@@ -563,16 +570,16 @@ class Elephant(threading.Thread):
     def x_saving_recording(self, event_data) :
         pass
 
-    def e_stopped(self, event_data) :
+    def e_ready(self, event_data) :
         print(event_data.transition)
         if self.playbackservice != None:
             self.playbackservice = None
         load_kernel_module('g_midi')
-
-    def x_stopped(self, event_data) :
+        
+    def x_ready(self, event_data) :
         pass
     
-    def e_skip_back_while_stopped(self, event_data): 
+    def e_skip_back_while_ready(self, event_data): 
         file = self.filemanager.get_previous_filename()
         if file is not None:
             self.raise_event(E_PREVIOUS_FILE)
@@ -581,7 +588,7 @@ class Elephant(threading.Thread):
         
 
 
-    def x_skip_back_while_stopped(self, event_data): 
+    def x_skip_back_while_ready(self, event_data): 
         pass
     
     def e_skip_back_while_playing(self, event_data): 
@@ -624,7 +631,7 @@ class Elephant(threading.Thread):
     def x_skip_back_while_playing_paused(self, event_data): 
         pass
     
-    def e_skip_forward_while_stopped(self, event_data): 
+    def e_skip_forward_while_ready(self, event_data): 
         #print(event_data.transition)
         file = self.filemanager.get_next_filename()
         
@@ -638,7 +645,7 @@ class Elephant(threading.Thread):
             
 
 
-    def x_skip_forward_while_stopped(self, event_data): 
+    def x_skip_forward_while_ready(self, event_data): 
         pass
     
     def e_skip_forward_while_playing(self, event_data): 
@@ -714,14 +721,10 @@ class Elephant(threading.Thread):
         print(f"e_mass_storage_disable: {event_data.transition}")
         load_kernel_module('g_midi')
         remove_kernel_module('g_mass_storage')
-        self.raise_event(E_MASS_STORAGE_DISABLED)
-       
-
-    def x_mass_storage_management(self, event_data):
-        print(event_data.transition)
-
-       
-        
+        if not cfg.AutoRecordEnabled:
+            self.raise_event(E_MASS_STORAGE_DISABLED)
+        else:
+            self.raise_event(E_MASS_STORAGE_DISABLED_FROM_AUTORECORD)
    
     #
     # Start up threads that manage LED states if necessary.    
@@ -758,7 +761,7 @@ class Elephant(threading.Thread):
         try:
             self.setup_led_managers()
         except Exception as e:
-            logger.exception(f"setup_led_managers failed: {e}")
+            self.logger.exception(f"setup_led_managers failed: {e}")
         
         self.machine = Machine(self, states=states, transitions=transitions,
                                before_state_change=self.all_events_callback, 
@@ -794,7 +797,7 @@ class Elephant(threading.Thread):
         if cfg.AutoRecordEnabled:
             self.raise_event(E_AUTO_RECORD_BUTTON)
         try:
-            while True:
+            while self.isRunning:
                 trigger_method = self.event_queue.get()
                 logging.debug('Getting ' + str(trigger_method)
                               + ' : ' + str(self.event_queue.qsize()) + ' items in queue')
@@ -804,13 +807,14 @@ class Elephant(threading.Thread):
                     self.display_status(pause=.2)
                 except Exception as exception:
                     self.logger.debug(exception)
-            return
+            print("Elephant thread exiting...")
         except Exception as e:
             self.display_exception(e)
 
 if __name__ == '__main__':
     
-    import threading, sys, traceback
+    import threading, sys, traceback, logging
+    logger=logging.getLogger(__name__)
 
     def dumpstacks(signal, frame):
         id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
@@ -829,9 +833,23 @@ if __name__ == '__main__':
     
     
     try:
+        if cfg.DEFAULT_LOG_LEVEL==logging.INFO:
+            yappi.start()
         elephant_thread = Elephant(name='Elephant')
         elephant_thread.start()
+        elephant_thread.join()
         
     except KeyboardInterrupt:
         logger.exception("Interrupted")
+        elephant_thread.isRunning=False
+        elephant_thread.raise_event(E_STOP_BUTTON)
+        elephant_thread.join()
+        if cfg.DEFAULT_LOG_LEVEL==logging.INFO:
+            yappi.stop()
+            threads = yappi.get_thread_stats()
+            for thread in threads:
+                print(
+                    "Function stats for (%s) (%d)" % (thread.name, thread.id)
+                )  # it is the Thread.__class__.__name__
+                yappi.get_func_stats(ctx_id=thread.id).print_all()
         sys.exit(0)

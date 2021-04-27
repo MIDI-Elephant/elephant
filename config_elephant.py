@@ -39,18 +39,20 @@ except Exception as e:
     eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
     
     if __platform__ == "headless":
+        
+        eventThreadPlugins=['TCPReadcharThread', 'GPIOReadcharThread', 'TerminalReadcharThread']
             
-        AutoRecordEnabled=False
+        AutoRecordEnabled=True
         Headless=True
         ContinuousPlaybackEnabled=False
         TrackingSilenceEnabled=False
         
         use_lcd = False
-        use_gpio = False
+        use_gpio = True
         use_kmod = True
         
-        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1 20:0',
-                     'UM-ONE:UM-ONE MIDI 1 24:0', 'MIDI9/QRS PNOScan MIDI 1']
+        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1',
+                     'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1']
         outPortName='f_midi'
         midi_base_directory= '/mnt/usb_share'
             
@@ -84,7 +86,7 @@ except Exception as e:
         #
         # The headless platform can get input from switches - but only one
         #
-        eventThreadPlugins.append('GPIOReadcharThread')
+        eventThreadPlugins.append('GPIOHeadlessReadcharThread')
         
     elif __platform__ == "dev":
         
@@ -97,8 +99,8 @@ except Exception as e:
         use_gpio = True
         use_kmod = True
         
-        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1 24:0',
-                     'UM-ONE:UM-ONE MIDI 1 24:0', 'MIDI9/QRS PNOScan MIDI 1']
+        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1',
+                     'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1']
         outPortName='f_midi'
         
         midi_base_directory= '/mnt/usb_share'   
@@ -124,7 +126,7 @@ except Exception as e:
         AUTO_RECORD_BOARD=19
         BACK_BOARD=21
         FORWARD_BOARD=23
-        MASS_STORAGE_BOARD=STOP_BOARD
+        MASS_STORAGE_BOARD=None
         
         #
         # The dev platform can get input from switches - all of the above
@@ -142,8 +144,8 @@ except Exception as e:
         use_gpio = False
         use_kmod = False
         
-        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1 24:0',
-                     'UM-ONE:UM-ONE MIDI 1 24:0', 'MIDI9/QRS PNOScan MIDI 1',
+        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1',
+                     'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1',
                      'VMPK Output', 'iRig MIDI 2']
         
         outPortName='ElephantIAC'
