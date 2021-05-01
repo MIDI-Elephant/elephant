@@ -40,7 +40,8 @@ except Exception as e:
     
     if __platform__ == "headless":
         
-        eventThreadPlugins=['TCPReadcharThread', 'GPIOReadcharThread', 'TerminalReadcharThread']
+        #eventThreadPlugins=['TCPReadcharThread', 'GPIOReadcharThread', 'TerminalReadcharThread']
+        eventThreadPlugins=['TCPReadcharThread', 'GPIOReadcharThread']
             
         AutoRecordEnabled=True
         Headless=True

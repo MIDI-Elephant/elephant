@@ -833,7 +833,7 @@ if __name__ == '__main__':
     
     
     try:
-        if cfg.DEFAULT_LOG_LEVEL==logging.INFO:
+        if cfg.DEFAULT_LOG_LEVEL==logging.DEBUG:
             yappi.start()
         elephant_thread = Elephant(name='Elephant')
         elephant_thread.start()
@@ -844,7 +844,7 @@ if __name__ == '__main__':
         elephant_thread.isRunning=False
         elephant_thread.raise_event(E_STOP_BUTTON)
         elephant_thread.join()
-        if cfg.DEFAULT_LOG_LEVEL==logging.INFO:
+        if cfg.DEFAULT_LOG_LEVEL==logging.DEBUG:
             yappi.stop()
             threads = yappi.get_thread_stats()
             for thread in threads:

@@ -30,6 +30,10 @@ class MIDIEventService(threading.Thread):
                     print(f"Filtering: {msg}")
                     continue
                 
+                if msg.velocity==127 and msg.note==60:
+                    print(f"Filtering: {msg}")
+                    continue
+
                 self.elephant.set_trigger_message(msg)
                 print(f"Trigger message: {msg}")
                 

@@ -3,8 +3,12 @@ import ElephantCommon as common
 import Elephant
 import time as time
 import mido as mido
+import logging
 
 class RecordingService(threading.Thread):
+    
+    logger=logging.getLogger(__name__)
+
     def __init__(self, name, elephant, auto):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
@@ -39,9 +43,10 @@ class RecordingService(threading.Thread):
         msg = self.elephant.get_trigger_message()
         if not msg is None and common.is_channel_message(msg):
             msg.time = int(mido.second2tick(0, ticksPerBeat, tempo))
-            outPort.send(msg)
-            # print(f"Appended message: {msg}")
-            track.append(msg)
+            if not (msg.type == 'note_on' and msg.velocity==127):
+                outPort.send(msg)
+                self.logger.debug(f"Appended message: {msg}")
+                track.append(msg)
 
         last_time = time.time()
         start_time = time.time()
@@ -58,8 +63,11 @@ class RecordingService(threading.Thread):
                          return
                     continue
                 
-                outPort.send(msg)
-                #print(f"Sent: {msg}")
+                if msg.type=='note_on' and not msg.velocity==127:
+                    outPort.send(msg)
+                    #print(f"Sent: {msg}")
+                else:
+                    continue
                 
                 if not common.is_channel_message(msg) and self.midi_pause_elapsed(start_time):
                     self.elephant.seconds_of_silence += self.silence_elapsed
@@ -73,7 +81,7 @@ class RecordingService(threading.Thread):
             intTime = int(mido.second2tick(delta_time, ticksPerBeat, tempo))
             last_time = current_time
             msg.time = intTime
-            #print(f"Appended: {msg}")
+            self.logger.debug(f"Appended: {msg}")
             track.append(msg)
             
         self.elephant.close_output_port()
