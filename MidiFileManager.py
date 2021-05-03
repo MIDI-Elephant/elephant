@@ -66,7 +66,7 @@ class MidiFileManager():
         
         self.current_list = sorted(glob.glob(f"{Elephant.cfg.midi_base_directory}/*.mid"), reverse=False)
         
-        print(self.current_list)
+        #print(self.current_list)
         
         for midifile_path in self.current_list:
             try:

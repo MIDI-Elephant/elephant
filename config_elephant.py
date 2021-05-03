@@ -41,7 +41,7 @@ except Exception as e:
     if __platform__ == "headless":
         
         #eventThreadPlugins=['TCPReadcharThread', 'GPIOReadcharThread', 'TerminalReadcharThread']
-        eventThreadPlugins=['TCPReadcharThread', 'GPIOReadcharThread']
+        eventThreadPlugins=['TCPReadcharThread', 'GPIOHeadlessReadcharThread']
             
         AutoRecordEnabled=True
         Headless=True
@@ -84,12 +84,9 @@ except Exception as e:
         FORWARD_BOARD=None
         MASS_STORAGE_BOARD=12
         
-        #
-        # The headless platform can get input from switches - but only one
-        #
-        eventThreadPlugins.append('GPIOHeadlessReadcharThread')
-        
     elif __platform__ == "dev":
+        
+        eventThreadPlugins=['GPIOReadcharThread', 'TCPReadcharThread']
         
         AutoRecordEnabled=False
         Headless=True
@@ -129,12 +126,10 @@ except Exception as e:
         FORWARD_BOARD=23
         MASS_STORAGE_BOARD=None
         
-        #
-        # The dev platform can get input from switches - all of the above
-        #
-        eventThreadPlugins.append('GPIOReadcharThread')
         
     elif __platform__ == "mac":
+        
+        eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
         
         AutoRecordEnabled=False
         Headless=True

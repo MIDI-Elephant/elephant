@@ -43,22 +43,24 @@ class GPIOReadcharThread(threading.Thread):
         setup_gpio()
         sleep(1)
         while True:
-            sleep(.08)
+            sleep(.01)
             try:
                 for pin in all_board_pins:
                     # headless platform only has one switch
                     if pin == None:
                         continue
                     if GPIO.input(pin):
-                        #sleep(.03)
-                        if GPIO.input(pin):
+                        sleep(.03) # debounce...
+                        while GPIO.input(pin):
                            char = board_pin_to_char[pin]
                            self.logger.debug(f"Putting char '{char}' into output queue")
                            self.output_queue.put(char)
-                           # Debounce...
+                           # Wait until the key is released
                            if (pin != FORWARD_BOARD and pin != BACK_BOARD and pin != STOP_BOARD):
                                while GPIO.input(pin):
                                    pass
+                           else:
+                               sleep(self.normal_repeat_wait/2)
                             
             except Exception as e:
                 if isinstance(e, KeyboardInterrupt):

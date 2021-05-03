@@ -60,6 +60,8 @@ apt --assume-yes install libjack0
 apt --assume-yes install libjack-dev
 pip3 install python-rtmidi
 
+# Disable w1_gpio
+Make sure it's disabled in armbian-config->System->Hardware->w1-gpio
 
 
 # vncserver support - only for development device
@@ -470,6 +472,13 @@ apt install gdb python2-dbg
 ## Standalone setup:  Disable UART1 by removing module from /etc/amrbianEnv.txt
 
 
+Preventing SD Card corruption
+https://www.taillieu.info/index.php/internet-of-things/raspberrypi/320-stopping-sd-card-corruption-on-raspberry-pi-s-raspbian
+
+apt-get install dphys-swapfile
+sudo dphys-swapfile swapoff
+sudo dphys-swapfile uninstall
+sudo update-rc.d dphys-swapfile remove
 
 
 

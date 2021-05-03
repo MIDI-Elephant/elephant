@@ -331,7 +331,7 @@ class Elephant(threading.Thread):
                     if led != None:
                         led.indicator_on(indicator[1])
             except Exception as e:
-                logger.warn(f"No indicator found for state {state}, {e}")
+                logger.warning(f"No indicator found for state {state}, {e}")
         else:
             #print(f"No LED managers are active.")
             pass

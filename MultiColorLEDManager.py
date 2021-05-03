@@ -71,7 +71,9 @@ class ColorLEDThread(threading.Thread):
         led_pins_tuple=led_dict[self.led_name]
        
         for pin in list(led_pins_tuple):
-            self.logger.debug(f"Setting up name={self.name}, pin {pin} as output")
+            if pin is None:
+                continue
+            print(f"Setting up name={self.name}, pin {pin} as output")
             GPIO.setup(pin, GPIO.OUT)
             GPIO.output(pin, False)
            
