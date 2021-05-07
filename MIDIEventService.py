@@ -30,7 +30,7 @@ class MIDIEventService(threading.Thread):
                     print(f"Filtering: {msg}")
                     continue
                 
-                if msg.velocity==127 and msg.note==60:
+                if msg.type == 'note_on' and msg.velocity==127 and msg.note==60:
                     print(f"Filtering: {msg}")
                     continue
 

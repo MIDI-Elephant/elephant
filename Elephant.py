@@ -721,7 +721,7 @@ class Elephant(threading.Thread):
         print(f"e_mass_storage_disable: {event_data.transition}")
         load_kernel_module('g_midi')
         remove_kernel_module('g_mass_storage')
-        if not cfg.AutoRecordEnabled:
+        if not cfg.ElephantModeEnabled:
             self.raise_event(E_MASS_STORAGE_DISABLED)
         else:
             self.raise_event(E_MASS_STORAGE_DISABLED_FROM_AUTORECORD)
@@ -794,7 +794,7 @@ class Elephant(threading.Thread):
         self.set_indicator_for_state(S_READY)
         self.set_indicator_for_state(S_ELEPHANT_ONLINE)
         
-        if cfg.AutoRecordEnabled:
+        if cfg.ElephantModeEnabled:
             self.raise_event(E_AUTO_RECORD_BUTTON)
         try:
             while self.isRunning:

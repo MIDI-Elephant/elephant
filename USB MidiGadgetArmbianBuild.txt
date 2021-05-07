@@ -429,10 +429,10 @@ vi elephant.service
 <?xml version="1.0" standalone='no'?><!--*-nxml-*-->
 <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
 <service-group>
-<name replace-wildcards="yes">%h ElephantMMC</name>
+<name replace-wildcards="yes">%h</name>
 <service>
 <type>_midi._tcp</type>
-<port>8001</port>
+<port>10000</port>
 </service>
 </service-group>
 

@@ -43,7 +43,7 @@ class RecordingService(threading.Thread):
         msg = self.elephant.get_trigger_message()
         if not msg is None and common.is_channel_message(msg):
             msg.time = int(mido.second2tick(0, ticksPerBeat, tempo))
-            if not (msg.type == 'note_on' and msg.velocity==127):
+            if not (msg.type == 'note_on' and msg.velocity==127 and msg.note==60):
                 outPort.send(msg)
                 self.logger.debug(f"Appended message: {msg}")
                 track.append(msg)
@@ -63,7 +63,7 @@ class RecordingService(threading.Thread):
                          return
                     continue
                 
-                if msg.type=='note_on' and not msg.velocity==127:
+                if msg.type=='note_on' and not (msg.velocity==127 and msg.note==60):
                     outPort.send(msg)
                     #print(f"Sent: {msg}")
                 else:

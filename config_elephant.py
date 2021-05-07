@@ -43,7 +43,7 @@ except Exception as e:
         #eventThreadPlugins=['TCPReadcharThread', 'GPIOReadcharThread', 'TerminalReadcharThread']
         eventThreadPlugins=['TCPReadcharThread', 'GPIOHeadlessReadcharThread']
             
-        AutoRecordEnabled=True
+        ElephantModeEnabled=True
         Headless=True
         ContinuousPlaybackEnabled=False
         TrackingSilenceEnabled=False
@@ -88,7 +88,7 @@ except Exception as e:
         
         eventThreadPlugins=['GPIOReadcharThread', 'TCPReadcharThread']
         
-        AutoRecordEnabled=False
+        ElephantModeEnabled=False
         Headless=True
         ContinuousPlaybackEnabled=False
         TrackingSilenceEnabled=False
@@ -131,7 +131,7 @@ except Exception as e:
         
         eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
         
-        AutoRecordEnabled=False
+        ElephantModeEnabled=False
         Headless=True
         ContinuousPlaybackEnabled=False
         TrackingSilenceEnabled=False

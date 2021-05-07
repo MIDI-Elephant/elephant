@@ -39,7 +39,21 @@ class TCPReadcharThread(threading.Thread):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # Bind the socket to the address given on the command line
         server_name = socket.gethostname()
-        server_address = (server_name, 10000)
+        
+        #
+        # Sometimes the service starts up before the wifi has bound
+        # an externally accessible IP address.  So just wait until
+        # we have a non localhost address...
+        #
+        while True:
+            current_address = socket.gethostbyname(server_name)
+            if current_address.split('.')[0] == '127':
+                print(f"Address={current_address}. Retrying...")
+                time.sleep(5)
+            else:
+                break
+        
+        server_address = (current_address, 10000)
         self.logger.info(f"starting up on {server_address}")
         
         sock.bind(server_address)

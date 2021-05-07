@@ -1,3 +1,4 @@
+from enum import Enum
 
 #
 # Some configuration values
@@ -98,27 +99,27 @@ non_held_character_translation_map = {
 # These are all of the states related to interactions
 # with the Elephant transport
 #
-S_READY='ElephantReady!'
+S_READY='ElephantReady'
 S_PLAYING='Playing'
 S_PLAYING_PAUSED='PlayingPaused'
 S_RECORDING='Recording'
 S_RECORDING_PAUSED='RecordingPaused'
 S_SAVING_RECORDING='SavingRecording'
-S_SKIP_BACK_WHILE_STOPPED='SkipBack WhileStopped'
-S_SKIP_FORWARD_WHILE_STOPPED='SkipForward WhileStopped'
-S_SKIP_BACK_WHILE_PLAYING='SkipBack WhilePlaying'
-S_SKIP_FORWARD_WHILE_PLAYING_PAUSED='SkipForward WhilePlayingPaused'
-S_SKIP_BACK_WHILE_PLAYING_PAUSED='SkipBack WhilePlayingPaused'
-S_SKIP_FORWARD_WHILE_PLAYING='SkipForward WhilePlaying'
+S_SKIP_BACK_WHILE_STOPPED='SkipBackWhileStopped'
+S_SKIP_FORWARD_WHILE_STOPPED='SkipForwardWhileStopped'
+S_SKIP_BACK_WHILE_PLAYING='SkipBackWhilePlaying'
+S_SKIP_FORWARD_WHILE_PLAYING_PAUSED='SkipForwardWhilePlayingPaused'
+S_SKIP_BACK_WHILE_PLAYING_PAUSED='SkipBackWhilePlayingPaused'
+S_SKIP_FORWARD_WHILE_PLAYING='SkipForwardWhilePlaying'
 S_SEEKING_FORWARD='SeekingForward'
 S_SEEKING_BACK='SeekingBack'
 S_WAITING_FOR_MIDI='WaitingForMIDI'
-S_AUTO_RECORDING='Recording Auto'
-S_AUTO_SAVING='Saving Auto'
-S_MASS_STORAGE_ENABLED='MassStorage Enabled'
+S_AUTO_RECORDING='RecordingAuto'
+S_AUTO_SAVING='SavingAuto'
+S_MASS_STORAGE_ENABLED='MassStorageEnabled'
 S_MASS_STORAGE_DISABLING='MassStorage Disabling'
-S_CONTINUOUS_PLAYBACK_ENABLE='ContinuousEnabled Playback'
-S_CONTINUOUS_PLAYBACK_DISABLE='ContinuousDisabled Playback'
+S_CONTINUOUS_PLAYBACK_ENABLE='ContinuousEnabledPlayback'
+S_CONTINUOUS_PLAYBACK_DISABLE='ContinuousDisabledPlayback'
 S_TRACKING_SILENCE_ENABLE='TrackingSilenceEnable'
 S_TRACKING_SILENCE_DISABLE='TrackingSilenceDisable'
 S_MIDI_ERROR='MIDIError'
@@ -126,6 +127,50 @@ S_ELEPHANT_ERROR='ElephantError'
 S_ELEPHANT_ONLINE='ElephantOnline'
 S_CLIENT_CONNECTED='ClientConnected'
 
+class ElephantStates(Enum):
+    S_READY = 'ElephantReady'
+    S_PLAYING = 'Playing'
+    S_PLAYING_PAUSED = 'PlayingPaused'
+    S_RECORDING = 'Recording'
+    S_RECORDING_PAUSED = 'RecordingPaused'
+    S_SAVING_RECORDING = 'SavingRecording'
+    S_SKIP_BACK_WHILE_STOPPED = 'SkipBackWhileStopped'
+    S_SKIP_FORWARD_WHILE_STOPPED = 'SkipForwardWhileStopped'
+    S_SKIP_BACK_WHILE_PLAYING = 'SkipBackWhilePlaying'
+    S_SKIP_FORWARD_WHILE_PLAYING_PAUSED = 'SkipForwardWhilePlayingPaused'
+    S_SKIP_BACK_WHILE_PLAYING_PAUSED = 'SkipBackWhilePlayingPaused'
+    S_SKIP_FORWARD_WHILE_PLAYING = 'SkipForwardWhilePlaying'
+    S_SEEKING_FORWARD = 'SeekingForward'
+    S_SEEKING_BACK = 'SeekingBack'
+    S_WAITING_FOR_MIDI = 'WaitingForMIDI'
+    S_AUTO_RECORDING = 'RecordingAuto'
+    S_AUTO_SAVING = 'SavingAuto'
+    S_MASS_STORAGE_ENABLED = 'MassStorageEnabled'
+    S_MASS_STORAGE_DISABLING = 'MassStorage Disabling'
+    S_CONTINUOUS_PLAYBACK_ENABLE = 'ContinuousEnabledPlayback'
+    S_CONTINUOUS_PLAYBACK_DISABLE = 'ContinuousDisabledPlayback'
+    S_TRACKING_SILENCE_ENABLE = 'TrackingSilenceEnable'
+    S_TRACKING_SILENCE_DISABLE = 'TrackingSilenceDisable'
+    S_MIDI_ERROR = 'MIDIError'
+    S_ELEPHANT_ERROR = 'ElephantError'
+    S_ELEPHANT_ONLINE = 'ElephantOnline'
+    S_CLIENT_CONNECTED = 'ClientConnected'
+    
+    def getState(self, state):
+        return repr(state)
+    
+    def genDartPlayerStateEnum(self):
+        print('enum PlayerState {')
+        numberOfStates=len(ElephantStates)
+        stateNumber=0
+        for name, member in ElephantStates.__members__.items():
+            stateNumber+=1
+            if stateNumber < numberOfStates :
+                print(f"    {name},")
+            else:
+                print(f"    {name}")
+                print("}")
+           
 
 def is_channel_message(msg):
     return (msg.type in midi_channel_messages.keys())
