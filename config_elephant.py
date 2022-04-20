@@ -4,7 +4,7 @@ import sys
 import getopt
 import logging
 
-DEFAULT_LOG_LEVEL=logging.INFO
+DEFAULT_LOG_LEVEL=logging.DEBUG
 
 logging.basicConfig(format='%(levelname)s:%(name)s: %(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=DEFAULT_LOG_LEVEL)
 from ElephantCommon import *
@@ -52,7 +52,8 @@ except Exception as e:
         use_gpio = True
         use_kmod = True
         
-        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1',
+        inPortNames=['Nord Grand:Nord Grand MIDI 1 24:0',
+                    'Novation SL MkIII:Novation SL MkIII MIDI 1',
                      'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1']
         outPortName='f_midi'
         midi_base_directory= '/mnt/usb_share'
@@ -97,7 +98,8 @@ except Exception as e:
         use_gpio = True
         use_kmod = True
         
-        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1',
+        inPortNames=['Nord Grand:Nord Grand MIDI 1 24:0',
+                     'Novation SL MkIII:Novation SL MkIII MIDI 1',
                      'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1']
         outPortName='f_midi'
         
@@ -140,7 +142,8 @@ except Exception as e:
         use_gpio = False
         use_kmod = False
         
-        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1',
+        inPortNames=['Nord Grand MIDI Output', 'Nord Grand:Nord Grand MIDI 1 24:0',
+                    'Novation SL MkIII:Novation SL MkIII MIDI 1',
                      'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1',
                      'VMPK Output', 'iRig MIDI 2']
         
@@ -148,7 +151,7 @@ except Exception as e:
         midi_base_directory= '/mnt/usb_share'   
        
        
-        inPortNames=['VMPK Output', 'iRig MIDI 2']
+        #inPortNames=['VMPK Output', 'iRig MIDI 2']
         midi_base_directory= '/Users/edward/MIDI'
         max_path_elements=4
         

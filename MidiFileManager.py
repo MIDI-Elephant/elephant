@@ -72,11 +72,12 @@ class MidiFileManager():
             try:
                 midifile = MidiFile(midifile_path)
                 new_file_tuple = tuple((midifile_path, midifile.length))
-                #print(f"Appending: {new_file_tuple}")
+                print(f"Appending: {new_file_tuple}")
                 self.current_tuples.append(new_file_tuple)
             except Exception as e:
                 print(f"Exception opening {midifile_path}: {e}")
-        
+                os.remove(midifile_path)
+                print(f"Removed invalid file: {midifile_path}")
         
         if len(self.current_list) > 0:
             # point at last element

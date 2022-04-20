@@ -63,11 +63,11 @@ class RecordingService(threading.Thread):
                          return
                     continue
                 
-                if msg.type=='note_on' and not (msg.velocity==127 and msg.note==60):
-                    outPort.send(msg)
-                    #print(f"Sent: {msg}")
-                else:
-                    continue
+                #if msg.type=='note_on' and not (msg.velocity==127 and msg.note==60):
+                outPort.send(msg)
+                print(f"Sent: {msg}")
+                #else:
+                #    continue
                 
                 if not common.is_channel_message(msg) and self.midi_pause_elapsed(start_time):
                     self.elephant.seconds_of_silence += self.silence_elapsed

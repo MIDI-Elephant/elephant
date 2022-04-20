@@ -21,7 +21,7 @@ from transitions import Machine
 from transitions import State
 import transitions
 from transitions.extensions.asyncio import AsyncMachine
-
+#
 import DisplayService
 from ElephantCommon import *
 from ElephantCommon import event_map as event_map
@@ -341,7 +341,12 @@ class Elephant(threading.Thread):
         status_text.append(self.state)
         
         if self.state not in [S_RECORDING, S_AUTO_RECORDING, S_WAITING_FOR_MIDI, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_DISABLING]:
-            file_tuple = self.filemanager.get_current_file_tuple()
+            try:
+                file_tuple = self.filemanager.get_current_file_tuple()
+            except:
+                e = sys.exc_info()[0]
+                logger.info("{e}")
+                file_tuple = None
             if file_tuple != None:
                 seconds = "{:.1f}".format(file_tuple[1])
                 status_text.append(f"{file_tuple[0]} {seconds}s")
