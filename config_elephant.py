@@ -98,7 +98,7 @@ except Exception as e:
         use_gpio = True
         use_kmod = True
         
-        inPortNames=['Nord Grand:Nord Grand MIDI 1 24:0',
+        inPortNames=['MPK mini 3:MPK mini 3 MIDI 1 24:0', 'Nord Grand:Nord Grand MIDI 1 24:0',
                      'Novation SL MkIII:Novation SL MkIII MIDI 1',
                      'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1']
         outPortName='f_midi'
@@ -131,7 +131,8 @@ except Exception as e:
         
     elif __platform__ == "mac":
         
-        eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
+        #eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
+        eventThreadPlugins=['TerminalReadcharThread']
         
         ElephantModeEnabled=False
         Headless=True
@@ -142,13 +143,16 @@ except Exception as e:
         use_gpio = False
         use_kmod = False
         
-        inPortNames=['Nord Grand MIDI Output', 'Nord Grand:Nord Grand MIDI 1 24:0',
-                    'Novation SL MkIII:Novation SL MkIII MIDI 1',
-                     'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1',
-                     'VMPK Output', 'iRig MIDI 2']
+
+        inPortNames=['VMPK Output']
+        
+        #inPortNames=['Nord Grand MIDI Output', 'Nord Grand:Nord Grand MIDI 1 24:0',
+        #              'Novation SL MkIII:Novation SL MkIII MIDI 1',
+        #             'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1',
+        #             'VMPK Output', 'iRig MIDI 2']
         
         outPortName='ElephantIAC'
-        midi_base_directory= '/mnt/usb_share'   
+        #midi_base_directory= '/mnt/usb_share'   
        
        
         #inPortNames=['VMPK Output', 'iRig MIDI 2']

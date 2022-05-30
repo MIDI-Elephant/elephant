@@ -51,6 +51,7 @@ FLASHING=5
 class ColorLEDThread(threading.Thread):
     
     logger=logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
     
     def __init__(self, ledmanager):
         threading.Thread.__init__(self)
@@ -67,6 +68,7 @@ class ColorLEDThread(threading.Thread):
         
         GPIO.setboard(GPIO.ZERO)  
         GPIO.setmode(GPIO.BOARD)
+        GPIO.setwarnings(False)
         
         led_pins_tuple=led_dict[self.led_name]
        
@@ -108,10 +110,11 @@ class ColorLEDThread(threading.Thread):
         elif self.color == c_red:
             GPIO.output(self.red_pin, False)
         else:
-           # self.logger.debug(f"Entering _led_off()")
+            self.logger.debug(f"Entering _led_off()")
             led_pins_tuple=led_dict[self.led_name]
             for pin in list(led_pins_tuple):
-                GPIO.output(pin, False)
+                if (pin != None):
+                    GPIO.output(pin, False)
          
     def set_color(self, color):
         self.color=color
@@ -121,25 +124,27 @@ class ColorLEDThread(threading.Thread):
             self.red_interval = color_params[IDX_RED_LED_INTERVAL] 
  
     def run(self):
-        #self.logger.debug(f"ColorLEDThread running for {self.name}")
+        self.logger.debug(f"ColorLEDThread running for {self.name}")
         while self.isRunning:
             self.colorthreadsync.clear()
             self.event.wait()
             if not self.isRunning:
                 break
         
-            #self.logger.debug(f"Running color LED loop")
+            self.logger.debug(f"Running color LED loop")
             while self.event.isSet() and self.isRunning:
-                GPIO.output(self.green_pin, True)
-                sleep(self.green_interval)
-                GPIO.output(self.green_pin, False)
-                GPIO.output(self.red_pin, True)
-                sleep(self.red_interval)
-                GPIO.output(self.red_pin, False)
+                if (self.green_pin != None):
+                    GPIO.output(self.green_pin, True)
+                    sleep(self.green_interval)
+                    GPIO.output(self.green_pin, False)
+                if (self.red_pin != None):
+                    GPIO.output(self.red_pin, True)
+                    sleep(self.red_interval)
+                    GPIO.output(self.red_pin, False)
             
             self.colorthreadsync.set()
                 
-        #self.logger.debug(f"ColorLEDThread for {self.led_name} stopped.")    
+        self.logger.debug(f"ColorLEDThread for {self.led_name} stopped.")    
             
 class MultiColorLEDManager(threading.Thread):
     logger=logging.getLogger(__name__)
@@ -165,12 +170,12 @@ class MultiColorLEDManager(threading.Thread):
         
     def _set_color(self, color):
         color_elements=color.split(":")
-        #self.logger.debug(f"color_elements={color_elements}")
+        self.logger.debug(f"color_elements={color_elements}")
         color_name=color_elements[0]
         self.color=color
         self.color_name=color_name
         if len(color_elements) == 2:
-            #self.logger.debug(f"Setting up for blinking, specifier={color_elements[1]}")
+            self.logger.debug(f"Setting up for blinking, specifier={color_elements[1]}")
             if color_elements[1] == BLINK_SPECIFIER:
                 self.state=BLINKING
                 self.blink_delay=DEFAULT_BLINK_DELAY
@@ -186,9 +191,9 @@ class MultiColorLEDManager(threading.Thread):
         self.state=None
         if self.blinkevent.isSet():
             self.blinkevent.clear()
-            #self.logger.debug(f"Waiting for blink thread to exit...")
+            self.logger.debug(f"Waiting for blink thread to exit...")
             self.blinksync.wait()
-            #self.logger.debug("Synchronized with blink thread...")
+            self.logger.debug("Synchronized with blink thread...")
         self.colorthread.reset()
         
     def _led_on(self):
@@ -198,13 +203,13 @@ class MultiColorLEDManager(threading.Thread):
         self.colorthread.led_off()
     
     def indicator_on(self, indicator_spec):
-        #self.logger.debug(f"LED Manager {self.led_name} setting indicator {indicator_spec}")
+        self.logger.debug(f"LED Manager {self.led_name} setting indicator {indicator_spec}")
         self.reset()
         self._set_color(indicator_spec)
         if self.state == BLINKING:
             self.led_blink_on(indicator_spec)
         else:
-            #self.logger.debug("Turning LED ON!")
+            self.logger.debug("Turning LED ON!")
             self._led_on()
        
     def led_on(self, color):
@@ -229,7 +234,7 @@ class MultiColorLEDManager(threading.Thread):
         self.led_blink_off()
        
     def stop(self):
-        #self.logger.debug(f"Shutting down LED {self.name}")
+        self.logger.debug(f"Shutting down LED {self.name}")
         self.colorthread.stop()
         self.isRunning = False
         self.blinkevent.set()
@@ -266,6 +271,21 @@ class MultiColorLEDManager(threading.Thread):
             #self.logger.debug("Exiting blink loop")
             self.blinksync.set()
                 
+
+if __name__ == '__main__':
+    led=MultiColorLEDManager("midi")
+    led.start()
+    while True:
+        led.led_on(c_red)
+        sleep(5)
+        led.led_off()
+        led.led_blink_on(c_red)
+        sleep(5)
+        led.led_blink_off()
+        
+    
+    
+    
 
 
         

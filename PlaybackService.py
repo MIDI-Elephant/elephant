@@ -22,7 +22,7 @@ class PlaybackService(threading.Thread):
        
 
     def run(self):
-        print(f"PlaybackService started, continuous={self.continuous}")
+        print(f"############# PlaybackService started, continuous={self.continuous}")
         
         midifile_path=self.elephant.filemanager.get_current_filename(full_path=True)
         if midifile_path is None:
@@ -45,9 +45,9 @@ class PlaybackService(threading.Thread):
                 if self.event.is_set():
                     break
                 outPort.send(msg)
-                #print(f"Played: {msg}")
+                print(f"Played: {msg}")
          
-        self.elephant.close_output_port() 
+        #self.elephant.close_output_port() 
         
         if not self.continuous:
             self.elephant.raise_event(common.E_END_OF_FILE)

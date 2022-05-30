@@ -72,7 +72,7 @@ class MidiFileManager():
             try:
                 midifile = MidiFile(midifile_path)
                 new_file_tuple = tuple((midifile_path, midifile.length))
-                print(f"Appending: {new_file_tuple}")
+                #print(f"Appending: {new_file_tuple}")
                 self.current_tuples.append(new_file_tuple)
             except Exception as e:
                 print(f"Exception opening {midifile_path}: {e}")
