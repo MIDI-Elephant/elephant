@@ -32,7 +32,8 @@ import MultiColorLEDManager
 import MIDIEventService
 import MidiFileManager
 import PlaybackService
-import RecordingServiceWithEcho
+#import RecordingServiceWithEcho
+import RecordingService
 
 import config_elephant as cfg
 import yappi
@@ -317,14 +318,10 @@ class Elephant(threading.Thread):
        
        
        self.seconds_of_silence=0.0
-       
-       self.recordingService = RecordingServiceWithEcho.RecordingServiceWithEcho("AutoRecordingService", 
-                                                self, False)
-       self.recordingService.start()
-       
        self.isRunning=True
      
     def set_indicator_for_state(self, state):
+        print(f"########### Looking for indicator for state {state}")
         if self.active_led_managers != None:
             try:
                 indicator=cfg.indicator_for_state_dict[state]
@@ -342,6 +339,7 @@ class Elephant(threading.Thread):
             pass
                 
     def display_status(self, pause=0):
+        print(f"########### Entering display_status()")
         status_text = []
         status_text.append(self.state)
         
@@ -480,8 +478,8 @@ class Elephant(threading.Thread):
             self.last_saved_file = filename
             self.set_midi_file(None)
             
-            #self.close_input_port()
-            #self.close_output_port()
+            self.close_input_port()
+            self.close_output_port()
             self.filemanager.refresh()
             self.raise_event(E_RECORDING_SAVED)
         except Exception as e:
@@ -503,10 +501,9 @@ class Elephant(threading.Thread):
         pass
         
     def e_auto_recording(self, event_data): 
-        self.recordingService.auto=True
-        #recordingService = RecordingServiceWithEcho.RecordingServiceWithEcho("AutoRecordingService", 
-        #                                        self, True)
-        #recordingService.start()
+        recordingService = RecordingService.RecordingService("AutoRecordingService", 
+                                                self, True)
+        recordingService.start()
             
     def x_auto_recording(self, event_data): 
         pass
@@ -558,11 +555,10 @@ class Elephant(threading.Thread):
         pass
 
     def e_recording(self, event_data): 
-        self.recordingService.auto=False
-        self.recordingService.start_recording()
-        #recordingService = RecordingServiceWithEcho.RecordingServiceWithEcho("RecordingServiceWithEcho", 
-        #                                                     self, False)
-        #recordingService.start()
+        
+        recordingService = RecordingService.RecordingService("RecordingService", 
+                                                             self, False)
+        recordingService.start()
 
 
     def x_recording(self, event_data): 
@@ -577,7 +573,6 @@ class Elephant(threading.Thread):
         #print(f"Exit {self.state}")
 
     def e_saving_recording(self, event_data) : 
-        #self.recordingService.stop_recording()
         self.save_recording()
        
 

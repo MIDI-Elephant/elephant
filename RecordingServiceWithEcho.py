@@ -49,21 +49,13 @@ class RecordingServiceWithEcho(threading.Thread):
         print(f"########### RECORDING STARTED ")
         
     def run(self):
+        consumed_trigger_message = False
+        
         print(f"########### {self.name} started...")
         print(f"########### Auto={self.auto}")
         inPort=self.elephant.get_input_port()
         outPort=self.elephant.get_output_port()
         
-        # First check for a trigger message that may have been left
-        # because of triggering on a MIDI event
-        #msg = self.elephant.get_trigger_message()
-        #if not msg is None and common.is_channel_message(msg):
-        #    msg.time = int(mido.second2tick(0, ticksPerBeat, tempo))
-        #    if not (msg.type == 'note_on' and msg.velocity==127 and msg.note==60):
-        #        outPort.send(msg)
-        #        self.logger.debug(f"Appended message: {msg}")
-        #        track.append(msg)
-
         while True:
             print(f"########## In RECORDING loop")
             start_time = time.time()
@@ -75,23 +67,33 @@ class RecordingServiceWithEcho(threading.Thread):
                 
                 if msg is None:
                     time.sleep(.001)
-                    #if self.midi_pause_elapsed(start_time):
-                    #     self.elephant.seconds_of_silence += self.silence_elapsed
-                    #     self.elephant.raise_event(common.E_MIDI_PAUSED)
-                    #     return
+                    if self.midi_pause_elapsed(start_time):
+                         self.elephant.seconds_of_silence += self.silence_elapsed
+                         self.elephant.raise_event(common.E_MIDI_PAUSED)
                     continue
                 
                 outPort.send(msg)
                 print(f"Sent: {msg}")
                
-                #if not common.is_channel_message(msg) and self.midi_pause_elapsed(start_time):
-                #    self.elephant.seconds_of_silence += self.silence_elapsed
-                #    self.elephant.raise_event(common.E_MIDI_PAUSED)
-                #    return
-                #elif common.is_channel_message(msg):
-                #    break                    
+                if not common.is_channel_message(msg) and self.midi_pause_elapsed(start_time):
+                    self.elephant.seconds_of_silence += self.silence_elapsed
+                    self.elephant.raise_event(common.E_MIDI_PAUSED)
+                            
                 if (self.elephant.get_state() == common.S_RECORDING or 
                     self.elephant.get_state() == common.S_AUTO_RECORDING):
+                    
+                    # First check for a trigger message that may have been left
+                    # because of triggering on a MIDI event
+                    if (not consumed_trigger_message and self.elephant.get_state() == common.S_AUTO_RECORDING):    
+                        msg = self.elephant.get_trigger_message()
+        
+                        if not msg is None and common.is_channel_message(msg):
+                            msg.time = int(mido.second2tick(0, ticksPerBeat, tempo))
+                            outPort.send(msg)
+                            print(f"Appended trigger message: {msg}")
+                            self.track.append(msg)
+                            consumed_trigger_message = True
+
                     self.current_time = time.time()
                     delta_time = self.current_time - self.last_time
                     intTime = int(mido.second2tick(delta_time, self.ticksPerBeat, self.tempo))
@@ -99,6 +101,8 @@ class RecordingServiceWithEcho(threading.Thread):
                     msg.time = intTime
                     self.logger.info(f"####### Appended: {msg}")
                     self.track.append(msg)
+                else:
+                    consumed_trigger_message = False
             
         self.elephant.close_output_port()
         self.elephant.close_input_port()

@@ -4,7 +4,7 @@ import sys
 import getopt
 import logging
 
-DEFAULT_LOG_LEVEL=logging.DEBUG
+DEFAULT_LOG_LEVEL=logging.INFO
 
 logging.basicConfig(format='%(levelname)s:%(name)s: %(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=DEFAULT_LOG_LEVEL)
 from ElephantCommon import *
@@ -108,7 +108,8 @@ except Exception as e:
         
         MAX_MIDI_IDLE_TIME_SECONDS=10
         
-        MIDI_RED=26 # solid-red = recording, flashing-red = listening for midi
+        MIDI_RED=26 # solid-red = recording, blinking-red = listening for midi
+                    # flashing red = saving recording
         MIDI_GREEN=None  
         STATUS_GREEN=None 
         STATUS_RED=None
@@ -273,7 +274,7 @@ indicator_for_state_dict = {
     S_PLAYING_PAUSED :(MIDI_LED, c_yellow_blink),
     S_WAITING_FOR_MIDI : (MIDI_LED, c_red_blink),
     S_AUTO_RECORDING : (MIDI_LED, c_red),
-    S_SAVING_RECORDING : (MIDI_LED, c_orange),
+    S_SAVING_RECORDING : (MIDI_LED, c_red_flash),
     S_AUTO_SAVING : (MIDI_LED, c_orange),
     S_MASS_STORAGE_ENABLED : (MIDI_LED, c_orange_flash),
     S_READY : (MIDI_LED, c_green),

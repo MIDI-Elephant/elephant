@@ -63,11 +63,19 @@ class RecordingService(threading.Thread):
                          return
                     continue
                 
-                if msg.type=='note_on' and not (msg.velocity==127 and msg.note==60):
-                    outPort.send(msg)
-                    #print(f"Sent: {msg}")
-                else:
-                    continue
+        
+                outPort.send(msg)
+                print(f"Sent: {msg}")
+                
+                current_time = time.time()
+                delta_time = current_time - last_time
+                intTime = int(mido.second2tick(delta_time, ticksPerBeat, tempo))
+                last_time = current_time
+                msg.time = intTime
+                
+                if not common.is_channel_message(msg):
+                    print(f"Appended: {msg}")
+                    track.append(msg)
                 
                 if not common.is_channel_message(msg) and self.midi_pause_elapsed(start_time):
                     self.elephant.seconds_of_silence += self.silence_elapsed
@@ -76,15 +84,9 @@ class RecordingService(threading.Thread):
                 elif common.is_channel_message(msg):
                     break                    
         
-            current_time = time.time()
-            delta_time = current_time - last_time
-            intTime = int(mido.second2tick(delta_time, ticksPerBeat, tempo))
-            last_time = current_time
-            msg.time = intTime
-            self.logger.debug(f"Appended: {msg}")
-            track.append(msg)
+            
             
         self.elephant.close_output_port()
         self.elephant.close_input_port()
-        #print(f"{self.name} exiting...")
+        print(f"{self.name} exiting...")
         

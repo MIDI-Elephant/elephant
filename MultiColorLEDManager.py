@@ -227,7 +227,7 @@ class MultiColorLEDManager(threading.Thread):
         self.blinkevent.clear()
        
     def led_flash_on(self, color):
-        self.blink_delay=DEFAULT_BLINK_DELAY/4
+        self.blink_delay=DEFAULT_BLINK_DELAY/10
         self.led_blink_on(color)
         
     def led_flash_off(self):
