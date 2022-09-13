@@ -34,6 +34,7 @@ class RecordingService(threading.Thread):
         track = mido.MidiTrack()
         midifile.tracks.append(track)
         self.elephant.set_midi_file(midifile)
+        print(f"############ MIDIFILE SET TO {midifile}")
         
         ticksPerBeat = 10000
         tempo = mido.bpm2tempo(120)
@@ -73,7 +74,7 @@ class RecordingService(threading.Thread):
                 last_time = current_time
                 msg.time = intTime
                 
-                if not common.is_channel_message(msg):
+                if common.is_channel_message(msg):
                     print(f"Appended: {msg}")
                     track.append(msg)
                 

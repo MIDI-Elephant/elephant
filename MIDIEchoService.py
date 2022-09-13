@@ -1,17 +1,18 @@
-#!/usr/local/bin/python3
+import threading
+import ElephantCommon as common
+import Elephant
+import time as time
 import mido as mido
+import logging
 
-#outPortName='f_midi'
-outPortName='ElephantIAC'
-#inPortName='Novation SL MkIII:Novation SL MkIII MIDI 1 20:0'
-#inPortName='Novation SL MkIII SL MkIII MIDI'
-inPortName='VMPK Output'
+class MIDIEchoService(threading.Thread):
+    
+    logger=logging.getLogger(__name__)
 
-
-inPort=mido.open_input(inPortName)
-outPort=mido.open_output(outPortName)
-
-while True:
-    for msg in inPort.iter_pending():
-        print(f"Sending {msg}")
-        outPort.send(msg) 
+    def __init__(self, name, elephant):
+       # Call the Thread class's init function
+       threading.Thread.__init__(self)
+       self.elephant = elephant
+       
+    def run(self):
+        

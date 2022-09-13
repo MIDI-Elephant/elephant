@@ -32,7 +32,7 @@ import MultiColorLEDManager
 import MIDIEventService
 import MidiFileManager
 import PlaybackService
-#import RecordingServiceWithEcho
+import RecordingServiceWithEcho
 import RecordingService
 
 import config_elephant as cfg
@@ -301,6 +301,7 @@ class Elephant(threading.Thread):
        
        self.trigger_message = None
        self.inputPort = None
+       self.inputPortName = None
        self.outputPort = None
        self.midifile = None
        
@@ -313,12 +314,16 @@ class Elephant(threading.Thread):
        self.recordingservice = None
        self.midiEventService = None
        
+       self.withEcho = False
+       
        self.continuous_playback_enabled=cfg.ContinuousPlaybackEnabled
        self.tracking_silence_enabled=cfg.TrackingSilenceEnabled
        
        
        self.seconds_of_silence=0.0
        self.isRunning=True
+       
+       self.get_input_port()
      
     def set_indicator_for_state(self, state):
         print(f"########### Looking for indicator for state {state}")
@@ -358,6 +363,7 @@ class Elephant(threading.Thread):
         else:
             status_text.append("*********")
             
+        status_text.append(f"{self.inputPortName}")
         status_text.append("")
         self.display_service.display_message(status_text, pause=pause)    
     
@@ -387,6 +393,7 @@ class Elephant(threading.Thread):
         
     
     def set_midi_file(self, file):
+        print(f"############ SET MIDIFILE TO {file}")
         self.midifile = file
     
     def get_state(self):
@@ -402,13 +409,14 @@ class Elephant(threading.Thread):
         self.inputPort = inputPort
         
     def get_input_port(self):
-        self.logger.debug("########## Entering get_input_port()")
+        self.logger.info("########## Entering get_input_port()")
         if self.inputPort is None:
             self.logger.info(f"########## Checking for a port to open in: {cfg.inPortNames}")
             for name in cfg.inPortNames:
                 self.logger.info(f"########### Trying to connect to {name}")
                 try:
                     self.inputPort = mido.open_input(name)
+                    self.inputPortName = name
                     self.logger.info(f"########### Successfully connected input port={name}")
                     break
                 except Exception as e:
@@ -468,12 +476,13 @@ class Elephant(threading.Thread):
     def save_recording(self):
         self.logger.debug(f"############# Entering save_recording")
         if self.midifile is None:
+            self.logger.info(f"######## NO MIDIFILE - CANNOT SAVE!")
             return
         
         try:
             filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}.mid"
             file_to_save=f"{cfg.midi_base_directory}/{filename}"
-            self.logger.debug(f"File={file_to_save}")
+            self.logger.info(f"File={file_to_save}")
             self.midifile.save(file_to_save) 
             self.last_saved_file = filename
             self.set_midi_file(None)
@@ -501,9 +510,10 @@ class Elephant(threading.Thread):
         pass
         
     def e_auto_recording(self, event_data): 
-        recordingService = RecordingService.RecordingService("AutoRecordingService", 
+        if (not self.withEcho):
+            recordingService = RecordingService.RecordingService("AutoRecordingService", 
                                                 self, True)
-        recordingService.start()
+            recordingService.start()
             
     def x_auto_recording(self, event_data): 
         pass
@@ -555,10 +565,10 @@ class Elephant(threading.Thread):
         pass
 
     def e_recording(self, event_data): 
-        
-        recordingService = RecordingService.RecordingService("RecordingService", 
+        if (not self.withEcho):
+            recordingService = RecordingService.RecordingService("RecordingService", 
                                                              self, False)
-        recordingService.start()
+            recordingService.start()
 
 
     def x_recording(self, event_data): 

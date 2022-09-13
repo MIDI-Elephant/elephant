@@ -99,8 +99,9 @@ class RecordingServiceWithEcho(threading.Thread):
                     intTime = int(mido.second2tick(delta_time, self.ticksPerBeat, self.tempo))
                     self.last_time = self.current_time
                     msg.time = intTime
-                    self.logger.info(f"####### Appended: {msg}")
-                    self.track.append(msg)
+                    if (common.is_channel_message(msg)):
+                        self.logger.info(f"####### Appended: {msg}")
+                        self.track.append(msg)
                 else:
                     consumed_trigger_message = False
             

@@ -145,7 +145,7 @@ except Exception as e:
         use_kmod = False
         
 
-        inPortNames=['VMPK Output']
+        inPortNames=['MPK mini 3','VMPK Output']
         
         #inPortNames=['Nord Grand MIDI Output', 'Nord Grand:Nord Grand MIDI 1 24:0',
         #              'Novation SL MkIII:Novation SL MkIII MIDI 1',
