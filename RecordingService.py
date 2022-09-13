@@ -29,7 +29,7 @@ class RecordingService(threading.Thread):
         print(f"{self.name} started...")
         print(f"Auto={self.auto}")
         inPort=self.elephant.get_input_port()
-        outPort=self.elephant.get_output_port()
+        outPorts=self.elephant.get_output_ports()
         midifile = mido.MidiFile(None, None, 0, 20000) #10000 is a ticks_per_beat value
         track = mido.MidiTrack()
         midifile.tracks.append(track)
@@ -45,7 +45,8 @@ class RecordingService(threading.Thread):
         if not msg is None and common.is_channel_message(msg):
             msg.time = int(mido.second2tick(0, ticksPerBeat, tempo))
             if not (msg.type == 'note_on' and msg.velocity==127 and msg.note==60):
-                outPort.send(msg)
+                for port in outPorts:
+                    port.send(msg)
                 self.logger.debug(f"Appended message: {msg}")
                 track.append(msg)
 
@@ -65,7 +66,8 @@ class RecordingService(threading.Thread):
                     continue
                 
         
-                outPort.send(msg)
+                for port in outPorts:
+                    port.send(msg)
                 print(f"Sent: {msg}")
                 
                 current_time = time.time()
@@ -87,7 +89,7 @@ class RecordingService(threading.Thread):
         
             
             
-        self.elephant.close_output_port()
+        self.elephant.close_output_ports()
         self.elephant.close_input_port()
         print(f"{self.name} exiting...")
         

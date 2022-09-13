@@ -33,7 +33,7 @@ class PlaybackService(threading.Thread):
             self.elephant.raise_event(common.E_NO_FILE)
             return
         
-        outPort=self.elephant.get_output_port()
+        outPorts=self.elephant.get_output_ports()
         midifile = MidiFile(midifile_path)
         length = midifile.length
         
@@ -48,7 +48,8 @@ class PlaybackService(threading.Thread):
                 self.event.wait(msg.time)
                 if self.event.is_set():
                     break
-                outPort.send(msg)
+                for port in outPorts:
+                    port.send(msg)
                 print(f"Played: {msg}")
          
         #self.elephant.close_output_port() 

@@ -17,6 +17,8 @@ import time
 
 from mido import MidiFile
 import mido
+from mido.ports import MultiPort
+
 from transitions import Machine
 from transitions import State
 import transitions
@@ -303,8 +305,10 @@ class Elephant(threading.Thread):
        
        self.trigger_message = None
        self.inputPort = None
+       self.inputPorts = []
        self.inputPortName = None
        self.outputPort = None
+       self.outputPorts = []
        self.midifile = None
        
        self.last_saved_file = None
@@ -324,14 +328,14 @@ class Elephant(threading.Thread):
        
        self.seconds_of_silence=0.0
        self.isRunning=True
-       import netifaces as ni
 
-
-    
+       self.eth0 = None
+       self.wlan0 = None
        
-       self.eth0 = ni.ifaddresses('eth0')
-       self.wlan0 = ni.ifaddresses('wlan0')
-       
+       if (cfg.show_interfaces):
+           self.eth0 = ni.ifaddresses('eth0')
+           self.wlan0 = ni.ifaddresses('wlan0')
+           
        self.ipaddress = None
        
        if (not self.wlan0 == None):
@@ -431,34 +435,40 @@ class Elephant(threading.Thread):
         self.logger.info("########## Entering get_input_port()")
         if self.inputPort is None:
             self.logger.info(f"########## Checking for a port to open in: {cfg.inPortNames}")
-            for name in cfg.inPortNames:
+            for name in mido.get_input_names():
                 self.logger.info(f"########### Trying to connect to {name}")
                 try:
-                    self.inputPort = mido.open_input(name)
-                    self.inputPortName = name
+                    port = mido.open_input(name)
+                    self.inputPorts.append(port)
                     self.logger.info(f"########### Successfully connected input port={name}")
-                    break
                 except Exception as e:
-                   pass
+                    print(f"######## EXCEPTION opening input={name}, {e}")
+                    pass
+        
+        self.inputPort = MultiPort(self.inputPorts)
                
         return self.inputPort
     
-    def set_output_port(self, outputPort):
-        self.outputPort = outputPort
-    
     def close_output_port(self):
-        if not self.outputPort is None:
-            #self.outputPort.panic()
-            self.outputPort.close()
-            
-        self.outputPort = None
+        for port in self.outputPorts:
+            port.close()
         
     
-    def get_output_port(self):
-        if self.outputPort is None:
-            self.outputPort = mido.open_output(cfg.outPortName)
-            self.logger.debug(f"########### Successfully connected output port={cfg.outPortName}")
-        return self.outputPort
+    def get_output_ports(self):
+        print(f"############# NEW METHOD #############")
+        for name in mido.get_output_names():
+            self.logger.info(f"########### Opening output to {name}")
+            try:
+                port = mido.open_output(name)
+                self.outputPorts.append(port)
+                self.logger.info(f"########### Successfully opened output port={name}")
+            except Exception as e:
+                self.logger.info(f"######### Exception while opening output={name}, {e}")
+                pass
+                
+        return self.outputPorts
+
+
     
     
     def raise_event(self, event_name):

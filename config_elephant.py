@@ -11,6 +11,9 @@ from ElephantCommon import *
 
 logger=logging.getLogger('Configuration')
 
+show_interfaces = False
+outPortName2=None
+
 try:
     logger.info(f"Already configured for platform {__platform__}")
 except Exception as e:
@@ -28,8 +31,6 @@ except Exception as e:
     except getopt.GetoptError:
         logger.error(f"{argv[0]} --platform=[headless|dev|mac]")
         logger.error(f"No platform provided, continuing with default=headless")
-    
-   
        
     
     logger.info(f"Configuring Elephant for platform '{__platform__}'")
@@ -51,6 +52,7 @@ except Exception as e:
         use_lcd = False
         use_gpio = True
         use_kmod = True
+        
         
         inPortNames=['Nord Grand:Nord Grand MIDI 1 24:0',
                     'Novation SL MkIII:Novation SL MkIII MIDI 1',
@@ -87,6 +89,7 @@ except Exception as e:
         
     elif __platform__ == "dev":
         
+        show_interfaces = True
         eventThreadPlugins=['GPIOReadcharThread', 'TCPReadcharThread']
         
         ElephantModeEnabled=False
@@ -101,7 +104,8 @@ except Exception as e:
         inPortNames=['MPK mini 3:MPK mini 3 MIDI 1 24:0', 'Nord Grand:Nord Grand MIDI 1 24:0',
                      'Novation SL MkIII:Novation SL MkIII MIDI 1',
                      'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1']
-        outPortName='f_midi'
+        #outPortName='f_midi'
+        outPortName='Nord Grand:Nord Grand MIDI 1 24:0'
         
         midi_base_directory= '/mnt/usb_share'   
         max_path_elements=3
@@ -152,7 +156,9 @@ except Exception as e:
         #             'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1',
         #             'VMPK Output', 'iRig MIDI 2']
         
-        outPortName='ElephantIAC'
+        #outPortName='ElephantIAC'
+        outPortName='Network Session 2'
+        #outPortName2='Network Session 3'
         #midi_base_directory= '/mnt/usb_share'   
        
        
