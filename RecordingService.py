@@ -34,7 +34,7 @@ class RecordingService(threading.Thread):
         track = mido.MidiTrack()
         midifile.tracks.append(track)
         self.elephant.set_midi_file(midifile)
-        print(f"############ MIDIFILE SET TO {midifile}")
+        self.logger.debug(f"############ MIDIFILE SET TO {midifile}")
         
         ticksPerBeat = 10000
         tempo = mido.bpm2tempo(120)

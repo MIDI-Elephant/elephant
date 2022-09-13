@@ -4,6 +4,7 @@ import ElephantCommon as common
 import Elephant
 import time as time
 import mido as mido
+import logging
 
 from mido import MidiFile
 
@@ -12,6 +13,9 @@ class PlaybackService(threading.Thread):
     def __init__(self, name, elephant=None, continuous=False):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
+       
+       self.logger=logging.getLogger(__name__)
+       
        self.elephant = elephant
        self.name = name
        
@@ -22,7 +26,7 @@ class PlaybackService(threading.Thread):
        
 
     def run(self):
-        print(f"############# PlaybackService started, continuous={self.continuous}")
+        self.logger.debug(f"############# PlaybackService started, continuous={self.continuous}")
         
         midifile_path=self.elephant.filemanager.get_current_filename(full_path=True)
         if midifile_path is None:

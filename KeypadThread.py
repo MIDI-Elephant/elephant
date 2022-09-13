@@ -43,7 +43,7 @@ class KeypadThread(threading.Thread):
         repeat_wait = self.readchar_thread.normal_repeat_wait
 
         if repeat_count == self.readchar_thread.total_repeat_count:
-            print(f"#### IS_REPEAT_CHAR=True, char='{charToCheck}'")
+            self.logger.debug(f"#### IS_REPEAT_CHAR=True, char='{charToCheck}'")
             return True
 
     def is_held_char_timeout(self, charToCheck):

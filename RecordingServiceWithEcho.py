@@ -46,24 +46,24 @@ class RecordingServiceWithEcho(threading.Thread):
         
         self.ticksPerBeat = 10000
         self.tempo = mido.bpm2tempo(120)
-        print(f"########### RECORDING STARTED ")
+        self.logger.debug(f"########### RECORDING STARTED ")
         
     def run(self):
         consumed_trigger_message = False
         
-        print(f"########### {self.name} started...")
-        print(f"########### Auto={self.auto}")
+        self.logger.debug(f"########### {self.name} started...")
+        self.logger.debug(f"########### Auto={self.auto}")
         inPort=self.elephant.get_input_port()
         outPort=self.elephant.get_output_port()
         
         while True:
-            print(f"########## In RECORDING loop")
+            self.logger.debug(f"########## In RECORDING loop")
             start_time = time.time()
             while True:
                 try:
                     msg = inPort.poll()
                 except Exception as e:
-                    print(f"Exception during poll: {e}")
+                    self.logger.error(f"Exception during poll: {e}")
                 
                 if msg is None:
                     time.sleep(.001)
@@ -73,7 +73,7 @@ class RecordingServiceWithEcho(threading.Thread):
                     continue
                 
                 outPort.send(msg)
-                print(f"Sent: {msg}")
+                self.logger.debug(f"Sent: {msg}")
                
                 if not common.is_channel_message(msg) and self.midi_pause_elapsed(start_time):
                     self.elephant.seconds_of_silence += self.silence_elapsed
@@ -90,7 +90,7 @@ class RecordingServiceWithEcho(threading.Thread):
                         if not msg is None and common.is_channel_message(msg):
                             msg.time = int(mido.second2tick(0, ticksPerBeat, tempo))
                             outPort.send(msg)
-                            print(f"Appended trigger message: {msg}")
+                            self.logger.debug(f"Appended trigger message: {msg}")
                             self.track.append(msg)
                             consumed_trigger_message = True
 
@@ -100,12 +100,12 @@ class RecordingServiceWithEcho(threading.Thread):
                     self.last_time = self.current_time
                     msg.time = intTime
                     if (common.is_channel_message(msg)):
-                        self.logger.info(f"####### Appended: {msg}")
+                        self.logger.debug(f"####### Appended: {msg}")
                         self.track.append(msg)
                 else:
                     consumed_trigger_message = False
             
         self.elephant.close_output_port()
         self.elephant.close_input_port()
-        print(f"{self.name} exiting...")
+        self.logger.info(f"{self.name} exiting...")
         

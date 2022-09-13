@@ -38,6 +38,8 @@ import RecordingService
 import config_elephant as cfg
 import yappi
 
+import netifaces as ni
+
 try:
     import i2clcd as LCD
     lcd = LCD.i2clcd(i2c_bus=0, i2c_addr=0x27, lcd_width=20)
@@ -322,19 +324,35 @@ class Elephant(threading.Thread):
        
        self.seconds_of_silence=0.0
        self.isRunning=True
+       import netifaces as ni
+
+
+    
        
+       self.eth0 = ni.ifaddresses('eth0')
+       self.wlan0 = ni.ifaddresses('wlan0')
+       
+       self.ipaddress = None
+       
+       if (not self.wlan0 == None):
+           self.ipaddress = f"wlan0={self.wlan0[ni.AF_INET][0]['addr']}"
+       elif (not self.eth0 == None):
+           self.ipaddress = f"eth0={self.eth0[ni.AF_INET][0]['addr']}"
+       else:
+           self.ipaddress="ipaddress=None"
+           
        self.get_input_port()
      
     def set_indicator_for_state(self, state):
-        print(f"########### Looking for indicator for state {state}")
+        self.logger.debug(f"########### Looking for indicator for state {state}")
         if self.active_led_managers != None:
             try:
                 indicator=cfg.indicator_for_state_dict[state]
-                print(f"Found indicator params {indicator}")
+                self.logger.debug(f"Found indicator params {indicator}")
                 led_name=indicator[0]
                 if led_name != None:
                     led=self.active_led_managers[led_name]
-                    print(f"Got active manager for LED {led_name}")
+                    self.logger.debug(f"Got active manager for LED {led_name}")
                     if led != None:
                         led.indicator_on(indicator[1])
             except Exception as e:
@@ -344,7 +362,7 @@ class Elephant(threading.Thread):
             pass
                 
     def display_status(self, pause=0):
-        print(f"########### Entering display_status()")
+        self.logger.debug(f"########### Entering display_status()")
         status_text = []
         status_text.append(self.state)
         
@@ -364,6 +382,7 @@ class Elephant(threading.Thread):
             status_text.append("*********")
             
         status_text.append(f"{self.inputPortName}")
+        status_text.append(self.ipaddress)
         status_text.append("")
         self.display_service.display_message(status_text, pause=pause)    
     
@@ -393,7 +412,7 @@ class Elephant(threading.Thread):
         
     
     def set_midi_file(self, file):
-        print(f"############ SET MIDIFILE TO {file}")
+        self.logger.debug(f"############ SET MIDIFILE TO {file}")
         self.midifile = file
     
     def get_state(self):
@@ -732,12 +751,12 @@ class Elephant(threading.Thread):
         self.raise_event(E_CONFIG_COMPLETE)
     
     def e_mass_storage_enable(self, event_data): 
-        print(f"e_mass_storage_enable: {event_data.transition}")
+        self.logger.info(f"e_mass_storage_enable: {event_data.transition}")
         load_kernel_module('g_mass_storage')
         remove_kernel_module('g_midi')
         
     def e_mass_storage_disable(self, event_data): 
-        print(f"e_mass_storage_disable: {event_data.transition}")
+        self.logger.info(f"e_mass_storage_disable: {event_data.transition}")
         load_kernel_module('g_midi')
         remove_kernel_module('g_mass_storage')
         if not cfg.ElephantModeEnabled:
