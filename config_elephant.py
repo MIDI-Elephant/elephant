@@ -12,7 +12,7 @@ from ElephantCommon import *
 logger=logging.getLogger('Configuration')
 
 show_interfaces = False
-outPortName2=None
+midiEcho = True
 
 try:
     logger.info(f"Already configured for platform {__platform__}")
@@ -87,7 +87,7 @@ except Exception as e:
         FORWARD_BOARD=None
         MASS_STORAGE_BOARD=12
         
-    elif __platform__ == "dev":
+    elif __platform__ == "desktop":
         
         show_interfaces = True
         eventThreadPlugins=['GPIOReadcharThread', 'TCPReadcharThread']
@@ -101,11 +101,9 @@ except Exception as e:
         use_gpio = True
         use_kmod = True
         
-        inPortNames=['MPK mini 3:MPK mini 3 MIDI 1 24:0', 'Nord Grand:Nord Grand MIDI 1 24:0',
-                     'Novation SL MkIII:Novation SL MkIII MIDI 1',
-                     'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1']
-        #outPortName='f_midi'
-        outPortName='Nord Grand:Nord Grand MIDI 1 24:0'
+        inPortNames=['MPK mini 3:MPK mini 3 MIDI 1 28:0']
+        outPortNames=['f_midi', 'wavestate:wavestate MIDI 1 24:0']
+        #outPortName='Nord Grand:Nord Grand MIDI 1 24:0'
         
         midi_base_directory= '/mnt/usb_share'   
         max_path_elements=3
@@ -132,7 +130,52 @@ except Exception as e:
         BACK_BOARD=21
         FORWARD_BOARD=23
         MASS_STORAGE_BOARD=None
+    
+    elif __platform__ == "dev":
         
+        midiEcho = False
+        show_interfaces = True
+        eventThreadPlugins=['GPIOReadcharThread', 'TCPReadcharThread']
+        
+        ElephantModeEnabled=False
+        Headless=True
+        ContinuousPlaybackEnabled=False
+        TrackingSilenceEnabled=False
+        
+        use_lcd = True
+        use_gpio = True
+        use_kmod = True
+        
+        inPortNames=['Nord Grand:Nord Grand MIDI 1 24:0']
+        #outPortName='f_midi'
+        outPortNames=['Nord Grand:Nord Grand MIDI 1 24:0', 'wavestate:wavestate MIDI 1 28:0']
+        
+        midi_base_directory= '/mnt/usb_share'   
+        max_path_elements=3
+        
+        MAX_MIDI_IDLE_TIME_SECONDS=10
+        
+        MIDI_RED=26 # solid-red = recording, blinking-red = listening for midi
+                    # flashing red = saving recording
+        MIDI_GREEN=None  
+        STATUS_GREEN=None 
+        STATUS_RED=None
+        
+        #
+        # These constants refer to the pin numbers on the 
+        # Orange Pi Zero LTS that correspond to buttons
+        # on a given hardware device.  Only the 'dev' and 'headless'
+        # platforms for Elephant have buttons so these do not
+        # need to be defined for other platforms
+        #
+        STOP_BOARD=11
+        PLAY_BOARD=13
+        RECORD_BOARD=15
+        AUTO_RECORD_BOARD=19
+        BACK_BOARD=21
+        FORWARD_BOARD=23
+        MASS_STORAGE_BOARD=None
+    
         
     elif __platform__ == "mac":
         
@@ -149,7 +192,7 @@ except Exception as e:
         use_kmod = False
         
 
-        inPortNames=['MPK mini 3','VMPK Output']
+        inPortNames=['MPK mini 3', 'VMPK Output']
         
         #inPortNames=['Nord Grand MIDI Output', 'Nord Grand:Nord Grand MIDI 1 24:0',
         #              'Novation SL MkIII:Novation SL MkIII MIDI 1',
@@ -157,7 +200,7 @@ except Exception as e:
         #             'VMPK Output', 'iRig MIDI 2']
         
         #outPortName='ElephantIAC'
-        outPortName='Network Session 2'
+        outPortNames=['ElephantIAC', 'wavestate 1 In']
         #outPortName2='Network Session 3'
         #midi_base_directory= '/mnt/usb_share'   
        

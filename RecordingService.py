@@ -68,7 +68,10 @@ class RecordingService(threading.Thread):
         
                 for port in outPorts:
                     port.send(msg)
-                print(f"Sent: {msg}")
+                    
+                if (common.is_channel_message(msg)):
+                    print(f"Sent: {msg}")
+                
                 
                 current_time = time.time()
                 delta_time = current_time - last_time

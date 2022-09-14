@@ -384,13 +384,13 @@ class Elephant(threading.Thread):
                 status_text.append("No Recordings")
         else:
             status_text.append("*********")
-           
+        
+        allInputs = ""
         inputCount = 0
-        allInputs = "" 
-        for port in self.inputPorts:
+        for name in cfg.inPortNames:
               if (inputCount > 0):
                   allInputs = allInputs + ", "
-              allInputs = allInputs + port.name.split(":", 1)[0]
+              allInputs = allInputs + name.split(":", 1)[0]
               inputCount = inputCount + 1
               
         status_text.append(f"{allInputs}")

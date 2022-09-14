@@ -5,6 +5,8 @@ import Elephant
 import time as time
 import mido as mido
 import logging
+import MidiClockGen as clockGen
+from multiprocessing import Process, Value
 
 from mido import MidiFile
 
@@ -23,10 +25,11 @@ class PlaybackService(threading.Thread):
        self.terminate = False
        self.event = Event()
        self.pause_event = Event()
+       self.run_clock = Value('i', True)
        
 
     def run(self):
-        self.logger.debug(f"############# PlaybackService started, continuous={self.continuous}")
+        self.logger.info(f"############# PlaybackService started, continuous={self.continuous}")
         
         midifile_path=self.elephant.filemanager.get_current_filename(full_path=True)
         if midifile_path is None:
@@ -34,6 +37,9 @@ class PlaybackService(threading.Thread):
             return
         
         outPorts=self.elephant.get_output_ports()
+        for port in outPorts:
+            self.start_clock(port)
+        time.sleep(.1)
         midifile = MidiFile(midifile_path)
         length = midifile.length
         
@@ -58,10 +64,18 @@ class PlaybackService(threading.Thread):
             self.elephant.raise_event(common.E_END_OF_FILE)
         else:
             self.elephant.raise_event(common.E_AUTO_NEXT)
-            
+          
+        self.stop_clocks()  
         print(f"PlaybackService exiting, terminate={self.terminate}")
         print(f"State={self.elephant.get_state()}")
        
-       
-        
+    def start_clock(self, port):
+         shared_bpm = Value('i', 120)
+         midi_clock_generator_proc = Process(target=clockGen.midi_clock_generator, args=(port, shared_bpm, self.run_clock))
+         midi_clock_generator_proc.start()
+             
+    def stop_clocks(self):
+        self.run_clock.value = False
+           
+      
         
