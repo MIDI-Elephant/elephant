@@ -5,7 +5,6 @@ import Elephant
 import time as time
 import mido as mido
 import logging
-import MidiClockGen as clockGen
 from multiprocessing import Process, Value
 
 from mido import MidiFile
@@ -36,12 +35,9 @@ class PlaybackService(threading.Thread):
             self.elephant.raise_event(common.E_NO_FILE)
             return
         
-        outPorts=self.elephant.get_output_ports()
-        for port in outPorts:
-            self.start_clock(port)
-        time.sleep(.1)
         midifile = MidiFile(midifile_path)
         length = midifile.length
+        outPorts = self.elephant.get_output_ports()
         
         for msg in midifile.play():
             if self.elephant.get_state() != common.S_PLAYING and self.elephant.get_state() != common.S_PLAYING_PAUSED:

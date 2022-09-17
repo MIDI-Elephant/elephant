@@ -34,8 +34,11 @@ import MultiColorLEDManager
 import MIDIEventService
 import MidiFileManager
 import PlaybackService
-import RecordingServiceWithEcho
 import RecordingService
+import MIDIClockGenerator
+
+from multiprocessing import Value
+import atexit
 
 import config_elephant as cfg
 import yappi
@@ -262,8 +265,8 @@ transitions = [
         [ E_MIDI_DETECTED, S_WAITING_FOR_MIDI, S_AUTO_RECORDING ],
         [ E_MIDI_PAUSED, S_AUTO_RECORDING, S_AUTO_SAVING ],
         [ E_RECORDING_SAVED, S_AUTO_SAVING, S_WAITING_FOR_MIDI ],
-        [ E_STOP_BUTTON, S_AUTO_RECORDING, S_SAVING_RECORDING ],
         [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_READY],
+        [ E_STOP_BUTTON, S_AUTO_RECORDING, S_SAVING_RECORDING ],
         [ E_STOP_BUTTON, S_WAITING_FOR_MIDI, S_READY ],
         [ E_SWITCH_MODE, S_WAITING_FOR_MIDI, S_MASS_STORAGE_ENABLED],
         [ E_SWITCH_MODE, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_DISABLING],
@@ -275,6 +278,7 @@ transitions = [
 import threading, sys, traceback
 
 def dumpstacks(signal, frame):
+    
     id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
     code = []
     for threadId, stack in sys._current_frames().items():
@@ -287,7 +291,6 @@ def dumpstacks(signal, frame):
 
 import signal
 signal.signal(signal.SIGQUIT, dumpstacks)
-
 
 
 class Elephant(threading.Thread):
@@ -316,8 +319,8 @@ class Elephant(threading.Thread):
        self.filemanager = None
        self.display_service = None
        
-       self.playbackservice = None
-       self.recordingservice = None
+       self.playbackService = None
+       self.recordingService = None
        self.midiEventService = None
        
        self.withEcho = False
@@ -346,6 +349,8 @@ class Elephant(threading.Thread):
            self.ipaddress="ipaddress=None"
            
        self.get_input_port()
+       
+       self.midiClocks = []
      
     def set_indicator_for_state(self, state):
         self.logger.debug(f"########### Looking for indicator for state {state}")
@@ -403,7 +408,8 @@ class Elephant(threading.Thread):
         status_text.append(self.state)
         status_text.append(self.filemanager.get_current_filename())
         status_text.append(exception)
-        self.display_service.display_message(status_text, clear, pause)    
+        #self.display_service.display_message(status_text, clear, pause)    
+        self.display_service.display_message(status_text)    
         
     
     def get_last_saved_file(self):
@@ -426,6 +432,9 @@ class Elephant(threading.Thread):
     def set_midi_file(self, file):
         self.logger.debug(f"############ SET MIDIFILE TO {file}")
         self.midifile = file
+        
+    def get_midi_file(self):
+        return self.midifile
     
     def get_state(self):
         return self.state
@@ -458,21 +467,22 @@ class Elephant(threading.Thread):
         return self.inputPort
     
     def close_output_port(self):
+        ##print("########## CLOSE OUTPUTS CALLED ############")
         for port in self.outputPorts:
             port.close()
         
     
     def get_output_ports(self):
-        print(f"############# NEW METHOD #############")
-        for name in cfg.outPortNames: #mido.get_output_names():
-            self.logger.info(f"########### Opening output to {name}")
-            try:
-                port = mido.open_output(name)
-                self.outputPorts.append(port)
-                self.logger.info(f"########### Successfully opened output port={name}")
-            except Exception as e:
-                self.logger.info(f"######### Exception while opening output={name}, {e}")
-                pass
+        if (not self.outputPorts):
+            for name in cfg.outPortNames: #mido.get_output_names():
+                self.logger.info(f"########### Opening output to {name}")
+                try:
+                    port = mido.open_output(name)
+                    self.outputPorts.append(port)
+                    self.logger.info(f"########### Successfully opened output port={name}")
+                except Exception as e:
+                    self.logger.info(f"######### Exception while opening output={name}, {e}")
+                    pass
                 
         return self.outputPorts
 
@@ -511,7 +521,7 @@ class Elephant(threading.Thread):
         
             
     def save_recording(self):
-        self.logger.debug(f"############# Entering save_recording")
+        self.logger.info(f"############# Entering save_recording")
         if self.midifile is None:
             self.logger.info(f"######## NO MIDIFILE - CANNOT SAVE!")
             return
@@ -525,7 +535,7 @@ class Elephant(threading.Thread):
             self.set_midi_file(None)
             
             self.close_input_port()
-            self.close_output_port()
+            #self.close_output_port()
             self.filemanager.refresh()
             self.raise_event(E_RECORDING_SAVED)
         except Exception as e:
@@ -538,36 +548,35 @@ class Elephant(threading.Thread):
         pass
         
     def e_waiting_for_midi(self, event_data): 
-        self.midiEventService = MIDIEventService.MIDIEventService(name="MIDIEventService", 
-                                                elephant=self)
-        self.midiEventService.start()
+        pass
+        #self.midiEventService = MIDIEventService.MIDIEventService(name="MIDIEventService", 
+        #                                        elephant=self)
+        #self.midiEventService.start()
         
             
     def x_waiting_for_midi(self, event_data): 
         pass
         
-    def e_auto_recording(self, event_data): 
-        if (not self.withEcho):
-            recordingService = RecordingService.RecordingService("AutoRecordingService", 
-                                                self, True)
-            recordingService.start()
+    def e_auto_recording(self, event_data):
+        self.recordingService.set_recording_start_time() 
             
     def x_auto_recording(self, event_data): 
         pass
         
     def e_auto_saving(self, event_data): 
-        self.save_recording()
+        pass
+        #self.save_recording()
     
     def x_auto_saving(self, event_data): 
         pass
     
     def e_playing(self, event_data): 
         if event_data.transition.source != S_PLAYING_PAUSED:
-            self.playbackservice = PlaybackService.PlaybackService(name="PlaybackService", 
+            self.playbackService = PlaybackService.PlaybackService(name="PlaybackService", 
                                                           elephant=self, continuous=self.continuous_playback_enabled)
-            self.playbackservice.start()
+            self.playbackService.start()
         else:
-            self.playbackservice.pause_event.set()
+            self.playbackService.pause_event.set()
        
         
     def e_continuous_playback_enable(self, event_data): 
@@ -595,18 +604,15 @@ class Elephant(threading.Thread):
 
     def e_playing_paused(self, event_data):
         print(f"Enter {self.state}")
-        self.playbackservice.pause_event.clear() 
+        self.playbackService.pause_event.clear() 
 
     def x_playing_paused(self, event_data): 
         #print(f"Exit {self.state}")
         pass
 
-    def e_recording(self, event_data): 
-        if (not self.withEcho):
-            recordingService = RecordingService.RecordingService("RecordingService", 
-                                                             self, False)
-            recordingService.start()
-
+    def e_recording(self, event_data):
+        self.recordingService.set_recording_start_time() 
+        pass
 
     def x_recording(self, event_data): 
         pass
@@ -620,7 +626,8 @@ class Elephant(threading.Thread):
         #print(f"Exit {self.state}")
 
     def e_saving_recording(self, event_data) : 
-        self.save_recording()
+        pass
+        #self.save_recording()
        
 
     def x_saving_recording(self, event_data) :
@@ -628,8 +635,8 @@ class Elephant(threading.Thread):
 
     def e_ready(self, event_data) :
         print(event_data.transition)
-        if self.playbackservice != None:
-            self.playbackservice = None
+        if self.playbackService != None:
+            self.playbackService = None
         load_kernel_module('g_midi')
         
     def x_ready(self, event_data) :
@@ -641,18 +648,16 @@ class Elephant(threading.Thread):
             self.raise_event(E_PREVIOUS_FILE)
         else:
             self.raise_event(E_NO_FILE)
-        
-
 
     def x_skip_back_while_ready(self, event_data): 
         pass
     
     def e_skip_back_while_playing(self, event_data): 
-        if self.playbackservice != None:
+        if self.playbackService != None:
             print("Waiting for playback thread to terminate...")
-            self.playbackservice.event.set()
-            self.playbackservice.join()
-            self.playbackservice = None
+            self.playbackService.event.set()
+            self.playbackService.join()
+            self.playbackService = None
             print("Continuing with skip...")
             
         file = self.filemanager.get_next_filename(full_path=True)
@@ -706,11 +711,11 @@ class Elephant(threading.Thread):
     
     def e_skip_forward_while_playing(self, event_data): 
         print(event_data.transition)
-        if self.playbackservice != None:
+        if self.playbackService != None:
             print("Waiting for playback thread to terminate...")
-            self.playbackservice.event.set()
-            self.playbackservice.join()
-            self.playbackservice = None
+            self.playbackService.event.set()
+            self.playbackService.join()
+            self.playbackService = None
             print("Continuing with skip...")
             
         file = self.filemanager.get_next_filename()
@@ -803,10 +808,8 @@ class Elephant(threading.Thread):
         if len(active_mgr_list) > 0:
             self.active_led_managers = dict(active_mgr_list)
 
-    
-       
     def all_events_callback(self, event_data):
-        self.logger.debug(event_data.transition)
+        self.logger.info(f"### TRANSITION LOGGING: {event_data.transition}")
         to_state=event_data.transition.dest 
         self.set_indicator_for_state(to_state)
         
@@ -837,11 +840,40 @@ class Elephant(threading.Thread):
                                                            elephant=self)
         self.filemanager.refresh()
     
+    def cleanup(self):
+        for proc in self.midiClocks:
+            print(f"Cleaning up clock {proc.out_port.name}")
+            proc.run_flag.value = 0
+            proc.join()
+            print(f"Clock {proc.out_port.name} exited...")
+            
+        self.midiClocks = []
+            
+        sys.exit(0)
     
     def run(self):
+        
+        atexit.register(self.cleanup)
+        
         self.setup_state_machine()
         
         self.display_status()
+        
+        self.get_output_ports()
+        
+        if (cfg.generateMIDIClock):
+            ##print("############### STARTING MIDI CLOCKS ################")
+            # Start MIDI clock
+            run_code = Value('i', 1)
+            bpm = Value('i',cfg.defaultMIDIClockBPM)
+            for port in self.outputPorts:
+                midi_clock_generator_proc = MIDIClockGenerator.MIDIClockGenerator(port, bpm, run_code)
+                midi_clock_generator_proc.start()
+                self.midiClocks.append(midi_clock_generator_proc)
+                
+        self.recordingService = RecordingService.RecordingService("ConstantRecordingService", 
+                                                self, True)
+        self.recordingService.start()
 
         ## Cleanup - exception handling etc.
         # Open up the input and output ports.  It's OK to run
@@ -867,12 +899,10 @@ class Elephant(threading.Thread):
         except Exception as e:
             self.display_exception(e)
 
-if __name__ == '__main__':
-    
-    import threading, sys, traceback, logging
-    logger=logging.getLogger(__name__)
 
-    def dumpstacks(signal, frame):
+def dumpstacks(signal, frame):
+        ##print("########### QUITTING ##########")
+        return
         id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
         code = []
         for threadId, stack in sys._current_frames().items():
@@ -883,15 +913,25 @@ if __name__ == '__main__':
                     code.append("  %s" % (line.strip()))
                     print(f"\n".join(code))
 
+
+def main():
+    import threading, sys, traceback, logging
     import signal
-    signal.signal(signal.SIGQUIT, dumpstacks)
+    from functools import partial
     
+    elephant_thread = Elephant(name='Elephant')
     
+    def kill_handler(signal, frame):
+        elephant_thread.cleanup()
+        sys.exit(0)
+    
+    signal.signal(signal.SIGQUIT, kill_handler)
+    signal.signal(signal.SIGINT, kill_handler)
     
     try:
         if cfg.DEFAULT_LOG_LEVEL==logging.DEBUG:
             yappi.start()
-        elephant_thread = Elephant(name='Elephant')
+            
         elephant_thread.start()
         elephant_thread.join()
         
@@ -909,3 +949,10 @@ if __name__ == '__main__':
                 )  # it is the Thread.__class__.__name__
                 yappi.get_func_stats(ctx_id=thread.id).print_all()
         sys.exit(0)
+        
+        
+
+if __name__ == '__main__':
+    logger=logging.getLogger(__name__)
+    main()
+    

@@ -170,7 +170,7 @@ class MidiFileManager():
             self.set_midi_file(None)
             
             self.close_input_port()
-            self.close_output_port()
+            #self.close_output_port()
             self.filemanager.refresh()
             self.raise_event(E_RECORDING_SAVED)
         except Exception as e:

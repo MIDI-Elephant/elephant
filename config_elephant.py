@@ -3,6 +3,7 @@
 import sys
 import getopt
 import logging
+from multiprocessing import Value
 
 DEFAULT_LOG_LEVEL=logging.INFO
 
@@ -13,6 +14,9 @@ logger=logging.getLogger('Configuration')
 
 show_interfaces = False
 midiEcho = True
+
+defaultMIDIClockBPM = 120
+generateMIDIClock = False
 
 try:
     logger.info(f"Already configured for platform {__platform__}")
@@ -89,6 +93,7 @@ except Exception as e:
         
     elif __platform__ == "desktop":
         
+        generateMIDIClock = True
         show_interfaces = True
         eventThreadPlugins=['GPIOReadcharThread', 'TCPReadcharThread']
         
@@ -101,8 +106,8 @@ except Exception as e:
         use_gpio = True
         use_kmod = True
         
-        inPortNames=['MPK mini 3:MPK mini 3 MIDI 1 28:0']
-        outPortNames=['f_midi', 'wavestate:wavestate MIDI 1 24:0']
+        inPortNames=['MPK mini 3:MPK mini 3 MIDI 1 24:0']
+        outPortNames=['f_midi:f_midi 20:0', 'wavestate:wavestate MIDI 1 28:0']
         #outPortName='Nord Grand:Nord Grand MIDI 1 24:0'
         
         midi_base_directory= '/mnt/usb_share'   
@@ -133,6 +138,7 @@ except Exception as e:
     
     elif __platform__ == "dev":
         
+        generateMIDIClock=True
         midiEcho = False
         show_interfaces = True
         eventThreadPlugins=['GPIOReadcharThread', 'TCPReadcharThread']
@@ -146,8 +152,7 @@ except Exception as e:
         use_gpio = True
         use_kmod = True
         
-        inPortNames=['Nord Grand:Nord Grand MIDI 1 24:0']
-        #outPortName='f_midi'
+        inPortNames=['Nord Grand:Nord Grand MIDI 1 24:0', 'wavestate:wavestate MIDI 1 28:0']
         outPortNames=['Nord Grand:Nord Grand MIDI 1 24:0', 'wavestate:wavestate MIDI 1 28:0']
         
         midi_base_directory= '/mnt/usb_share'   
@@ -199,11 +204,10 @@ except Exception as e:
         #             'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1',
         #             'VMPK Output', 'iRig MIDI 2']
         
-        #outPortName='ElephantIAC'
+        #outPortNames=['ElephantIAC']
         outPortNames=['ElephantIAC', 'wavestate 1 In']
         #outPortName2='Network Session 3'
         #midi_base_directory= '/mnt/usb_share'   
-       
        
         #inPortNames=['VMPK Output', 'iRig MIDI 2']
         midi_base_directory= '/Users/edward/MIDI'

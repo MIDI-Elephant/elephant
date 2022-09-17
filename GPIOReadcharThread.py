@@ -50,7 +50,7 @@ class GPIOReadcharThread(threading.Thread):
                     if pin == None:
                         continue
                     if GPIO.input(pin):
-                        sleep(.03) # debounce...
+                        sleep(.08) # debounce...
                         while GPIO.input(pin):
                            char = board_pin_to_char[pin]
                            self.logger.debug(f"Putting char '{char}' into output queue")

@@ -184,5 +184,6 @@ midi_channel_messages = {
     'aftertouch' : 'channel value',
     'pitchwheel' : 'channel pitch'
 }
+    
 
 
