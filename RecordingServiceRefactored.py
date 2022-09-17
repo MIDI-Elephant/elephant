@@ -51,7 +51,7 @@ class RecordingService(threading.Thread):
     def isPlaying(self):
         return self.elephant.get_state() == common.S_PLAYING or self.elephant.get_state() == common.S_PLAYING_PAUSED
     
-    def canEcho(self):
+    def canEchoOrRecord(self):
         return not self.isPlaying()\
           and not self.isSavingRecording()
     
@@ -119,17 +119,7 @@ class RecordingService(threading.Thread):
         pause_check_start_time = time.time()
         while True:
             
-            if (self.isSavingRecording()):
-                #print("###### SAVING RECORDING")
-                self.save_recording()
-                #print("###### RECORDING SAVED")
-                
-            if (self.isPlaying()):
-                #print("#### WAITING FOR RECORDING OR READY")
-                self.wait_for_elephant_states([common.S_AUTO_RECORDING, common.S_RECORDING, common.S_READY])
-                #print("#### RECORDING OR READY FOUND")
-            
-            if (not self.canEcho()):
+            if (not self.canEchoOrRecord()):
                 time.sleep(.001)
                 continue
             
@@ -139,23 +129,24 @@ class RecordingService(threading.Thread):
                 time.sleep(.001)
                 if self.isAutoRecording() and self.midi_pause_elapsed(pause_check_start_time):
                      self.elephant.seconds_of_silence += self.silence_elapsed
-                     self.raise_event_and_wait_for_elephant_states(common.E_MIDI_PAUSED, [common.S_AUTO_SAVING])
+                     self.elephant.raise_event(common.E_MIDI_PAUSED)
                 continue
              
               
             pause_check_start_time = time.time()
             
             # Send the message to all current outputs
+            for port in outPorts:
+                port.send(msg)
+                
             if (common.is_channel_message(msg)):
-                for port in outPorts:
-                    port.send(msg)
-                #print(f"Sent: {msg}")
+                print(f"Sent: {msg}")
              
             # Got a message and sent it. Now go into recording mode.    
             if (self.isWaitingForMIDI()):
-                #print("########### GOT MIDI! ##########")
-                self.raise_event_and_wait_for_elephant_states(common.E_MIDI_DETECTED, [common.S_AUTO_RECORDING]) 
-                #print("########### NOW IN RECORDING MODE ############")
+                print("########### GOT MIDI! ##########")
+                self.raise_event_and_wait_for_elephant_states(common.E_MIDI_DETECTED, [common.S_AUTO_RECORDING])
+                print("########### NOW IN RECORDING MODE ############")
             
             if(self.isRecording()):
                 current_time = time.time()
@@ -165,7 +156,7 @@ class RecordingService(threading.Thread):
                 start_time = time.time
                 msg.time = intTime
                 
-                #print(f"Appended: {msg}")
+                print(f"Appended: {msg}")
                 self.track.append(msg)
             
             

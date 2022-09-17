@@ -52,9 +52,12 @@ class PlaybackService(threading.Thread):
                     break
                 for port in outPorts:
                     port.send(msg)
-                print(f"Played: {msg}")
+                #print(f"Played: {msg}")
          
-        #self.elephant.close_output_port() 
+        # clear output ports
+        if False:
+            for port in outPorts:
+                port.panic()
         
         if not self.continuous:
             self.elephant.raise_event(common.E_END_OF_FILE)

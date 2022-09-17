@@ -487,9 +487,8 @@ class Elephant(threading.Thread):
         return self.outputPorts
 
 
-    
-    
     def raise_event(self, event_name):
+        print(f"########### RAISE EVENT CALLED WITH EVENT {event_name} ##########")
         try:
             self.event_queue.put(event_name)
         except Exception as exception:
@@ -517,10 +516,39 @@ class Elephant(threading.Thread):
         track.append(msg)
         midifile.save(file_to_save)
         self.seconds_of_silence=0.0
-
+        
+    def save_recording(self):
+        self.logger.info(f"############# Entering save_recording ELEPHANT!")
+        if self.midifile is None:
+            self.logger.info(f"######## NO MIDIFILE - CANNOT SAVE!")
+            return
+        
+        
+        try:
+            filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}.mid"
+            file_to_save=f"{cfg.midi_base_directory}/{filename}"
+            self.logger.info(f"File={file_to_save}")
+            self.get_midi_file().save(file_to_save) 
+            self.last_saved_file = filename
+            self.filemanager.refresh()
+            
+            self.midifile = mido.MidiFile(None, None, 0, 20000) #10000 is a ticks_per_beat value
+            self.track = mido.MidiTrack()
+            self.midifile.tracks.append(self.track)
+            self.set_midi_file(self.midifile)
+            self.logger.info(f"############ MIDIFILE SET TO {self.midifile} ###########")
+            self.raise_event(E_RECORDING_SAVED)
+            
+            # Clear output ports
+            for port in self.get_output_ports():
+                port.panic()
+            
+        except Exception as e:
+            print(f"Exception while saving file! {e}")
+            self.elephant.display_exception(e)
         
             
-    def save_recording(self):
+    def save_recording_old(self):
         self.logger.info(f"############# Entering save_recording")
         if self.midifile is None:
             self.logger.info(f"######## NO MIDIFILE - CANNOT SAVE!")
@@ -564,8 +592,8 @@ class Elephant(threading.Thread):
         pass
         
     def e_auto_saving(self, event_data): 
-        pass
         #self.save_recording()
+        pass
     
     def x_auto_saving(self, event_data): 
         pass
@@ -626,8 +654,9 @@ class Elephant(threading.Thread):
         #print(f"Exit {self.state}")
 
     def e_saving_recording(self, event_data) : 
-        pass
+        #print("######## EVENT E_SAVING_RECORDING ########")
         #self.save_recording()
+        pass
        
 
     def x_saving_recording(self, event_data) :
@@ -923,6 +952,7 @@ def main():
     
     def kill_handler(signal, frame):
         elephant_thread.cleanup()
+        elephant_thread.display_service.display("Elephant Done!", clear=True, pause=1)
         sys.exit(0)
     
     signal.signal(signal.SIGQUIT, kill_handler)
