@@ -307,7 +307,8 @@ vim elephant.service
 # Service definition
 [Unit]
 Description=The Elephant MIDI Service
-After=network.target
+Wants=network-online.target
+After=network.target network-online.target
 
 [Service]
 Type=simple

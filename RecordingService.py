@@ -22,6 +22,8 @@ class RecordingService(threading.Thread):
        self.midifile = None
        self.track = None
        self.last_time = None
+       self.wait_start_time = time.time()
+       self.seconds_of_silence = 0.0
      
     
     def set_recording_start_time(self):
@@ -56,15 +58,17 @@ class RecordingService(threading.Thread):
           and not self.isSavingRecording()
     
     def save_recording(self):
-        self.logger.debug(f"############# Entering save_recording")
+        self.logger.debug(f"############# Entering save_recording: RECORDING SERVICE")
         if self.midifile is None:
             self.logger.info(f"######## NO MIDIFILE - CANNOT SAVE!")
             return
         
         try:
-            filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}.mid"
+            filename = f"{datetime.today().strftime('%y%m%d-%H-%M-%S')}.mid"
             file_to_save=f"{cfg.midi_base_directory}/{filename}"
             self.logger.info(f"File={file_to_save}")
+            midifile = self.elephant.get_midi_file()
+            print(f"###### Length of file to save: {midifile.length} #########")
             self.elephant.get_midi_file().save(file_to_save) 
             self.last_saved_file = filename
             self.elephant.filemanager.refresh()
@@ -73,7 +77,7 @@ class RecordingService(threading.Thread):
             self.track = mido.MidiTrack()
             self.midifile.tracks.append(self.track)
             self.elephant.set_midi_file(self.midifile)
-            self.logger.debug(f"############ MIDIFILE SET TO {self.midifile}")
+            self.logger.info(f"############ NEW MIDIFILE SET TO {self.midifile}")
             #print("########## WAITING FOR WAITING_FOR_MIDI OR READY ########")
             self.raise_event_and_wait_for_elephant_states(common.E_RECORDING_SAVED, [common.S_WAITING_FOR_MIDI, common.S_READY])
             
@@ -81,6 +85,29 @@ class RecordingService(threading.Thread):
         except Exception as e:
             self.elephant.display_exception(e)
     
+     #
+    # If we are tracking 'silence', save a file that represents
+    # the total amount of 'silence' since the last save
+    #
+    def save_silence(self):  
+        filename = f"{datetime.today().strftime('%y%m%d-%H-%M-%S')}-S.mid"
+        file_to_save=f"{cfg.midi_base_directory}/{filename}"
+        self.logger.info(f"Saving silence of {self.seconds_of_silence} to {file_to_save}")
+        midifile = mido.MidiFile(filename=None, file=None, type=0, ticks_per_beat=20000) 
+        track = mido.MidiTrack()
+        midifile.tracks.append(track)
+        ticksPerBeat = 10000
+        tempo = mido.bpm2tempo(120)
+        
+        current_time = time.time()
+        delta_time = self.seconds_of_silence
+        intTime = int(mido.second2tick(delta_time, ticksPerBeat, tempo))
+        msg = mido.Message('note_on', note=0, velocity=0, time=intTime)
+        # print(f"Appended: {msg}")
+        track.append(msg)
+        msg = mido.Message('note_off', note=0, velocity=0)
+        midifile.save(file_to_save)
+        self.seconds_of_silence=0.0
     
     def wait_for_elephant_states(self, states):
         
@@ -101,6 +128,8 @@ class RecordingService(threading.Thread):
         print(f"Auto={self.auto}")
         inPort=self.elephant.get_input_port()
         outPorts=self.elephant.get_output_ports()
+        for port in outPorts:
+            port.panic()
         
         # Start out with a midi file/track
         self.midifile = mido.MidiFile(None, None, 0, 20000) #10000 is a ticks_per_beat value
@@ -112,8 +141,6 @@ class RecordingService(threading.Thread):
         ticksPerBeat = 10000
         tempo = mido.bpm2tempo(120)
         
-        # First check for a trigger message that may have been left
-        # because of triggering on a MIDI event
 
         self.last_time = time.time()
         pause_check_start_time = time.time()
@@ -138,7 +165,7 @@ class RecordingService(threading.Thread):
             if msg is None:
                 time.sleep(.001)
                 if self.isAutoRecording() and self.midi_pause_elapsed(pause_check_start_time):
-                     self.elephant.seconds_of_silence += self.silence_elapsed
+                     self.wait_start_time = time.time()
                      self.raise_event_and_wait_for_elephant_states(common.E_MIDI_PAUSED, [common.S_AUTO_SAVING])
                 continue
              
@@ -149,13 +176,16 @@ class RecordingService(threading.Thread):
             if (common.is_channel_message(msg)):
                 for port in outPorts:
                     port.send(msg)
-                #print(f"Sent: {msg}")
+                print(f"Sent: {msg}")
              
             # Got a message and sent it. Now go into recording mode.    
             if (self.isWaitingForMIDI()):
-                #print("########### GOT MIDI! ##########")
+                print("########### GOT MIDI! ##########")
+                if self.elephant.tracking_silence_enabled:
+                    self.seconds_of_silence += time.time() - self.wait_start_time
+                    self.save_silence()
                 self.raise_event_and_wait_for_elephant_states(common.E_MIDI_DETECTED, [common.S_AUTO_RECORDING]) 
-                #print("########### NOW IN RECORDING MODE ############")
+                print("########### NOW IN RECORDING MODE ############")
             
             if(self.isRecording()):
                 current_time = time.time()
@@ -165,7 +195,7 @@ class RecordingService(threading.Thread):
                 start_time = time.time
                 msg.time = intTime
                 
-                #print(f"Appended: {msg}")
+                print(f"Appended: {msg}")
                 self.track.append(msg)
             
             

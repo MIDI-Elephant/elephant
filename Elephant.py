@@ -45,6 +45,8 @@ import yappi
 
 import netifaces as ni
 
+import os as os
+
 try:
     import i2clcd as LCD
     lcd = LCD.i2clcd(i2c_bus=0, i2c_addr=0x27, lcd_width=20)
@@ -331,26 +333,17 @@ class Elephant(threading.Thread):
        
        self.seconds_of_silence=0.0
        self.isRunning=True
-
-       self.eth0 = None
-       self.wlan0 = None
        
-       if (cfg.show_interfaces):
-           self.eth0 = ni.ifaddresses('eth0')
-           self.wlan0 = ni.ifaddresses('wlan0')
-           
        self.ipaddress = None
-       
-       if (not self.wlan0 == None):
-           self.ipaddress = f"wlan0={self.wlan0[ni.AF_INET][0]['addr']}"
-       elif (not self.eth0 == None):
-           self.ipaddress = f"eth0={self.eth0[ni.AF_INET][0]['addr']}"
-       else:
-           self.ipaddress="ipaddress=None"
-           
+        
        self.get_input_port()
        
        self.midiClocks = []
+       
+    
+    def set_ip_address(self, addr):
+        self.ipaddress = addr
+        self.display_status(pause=0)
      
     def set_indicator_for_state(self, state):
         self.logger.debug(f"########### Looking for indicator for state {state}")
@@ -367,7 +360,7 @@ class Elephant(threading.Thread):
             except Exception as e:
                 logger.warning(f"No indicator found for state {state}, {e}")
         else:
-            #print(f"No LED managers are active.")
+            self.logger.debug(f"No LED managers are active.")
             pass
                 
     def display_status(self, pause=0):
@@ -384,7 +377,12 @@ class Elephant(threading.Thread):
                 file_tuple = None
             if file_tuple != None:
                 seconds = "{:.1f}".format(file_tuple[1])
-                status_text.append(f"{file_tuple[0]} {seconds}s")
+                filename = file_tuple[0]
+                # If it's silence, name it so...
+                if (filename.find("-S") != -1):
+                    filename = "SILENCE"
+                
+                status_text.append(f"{filename} {seconds}s")
             else:
                 status_text.append("No Recordings")
         else:
@@ -395,7 +393,7 @@ class Elephant(threading.Thread):
         for port in self.inputPorts:
               if (inputCount > 0):
                   allInputs = allInputs + ", "
-              allInputs = allInputs + port.name.split(":", 1)[0]
+              allInputs = allInputs + port.name.split(":", 1)[0].split()[0]
               inputCount = inputCount + 1
               
         status_text.append(f"{allInputs}")
@@ -498,10 +496,10 @@ class Elephant(threading.Thread):
     # If we are tracking 'silence', save a file that represents
     # the total amount of 'silence' since the last save
     #
-    def save_silence(self):  
+    def save_silenceX(self):  
         filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}-S.mid"
         file_to_save=f"{cfg.midi_base_directory}/{filename}"
-        self.logger.debug(f"Saving silence of {self.seconds_of_silence} to {file_to_save}")
+        self.logger.info(f"Saving silence of {self.seconds_of_silence} to {file_to_save}")
         midifile = mido.MidiFile(filename=None, file=None, type=0, ticks_per_beat=20000) 
         track = mido.MidiTrack()
         midifile.tracks.append(track)
@@ -514,10 +512,11 @@ class Elephant(threading.Thread):
         msg = mido.Message('note_on', note=0, velocity=0, time=intTime)
         # print(f"Appended: {msg}")
         track.append(msg)
+        msg = mido.Message('note_off', note=0, velocity=0)
         midifile.save(file_to_save)
         self.seconds_of_silence=0.0
         
-    def save_recording(self):
+    def save_recordingX(self):
         self.logger.info(f"############# Entering save_recording ELEPHANT!")
         if self.midifile is None:
             self.logger.info(f"######## NO MIDIFILE - CANNOT SAVE!")
@@ -525,7 +524,7 @@ class Elephant(threading.Thread):
         
         
         try:
-            filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}.mid"
+            filename = f"{datetime.today().strftime('%y%m%d%H-%M-%S')}.mid"
             file_to_save=f"{cfg.midi_base_directory}/{filename}"
             self.logger.info(f"File={file_to_save}")
             self.get_midi_file().save(file_to_save) 
@@ -689,7 +688,7 @@ class Elephant(threading.Thread):
             self.playbackService = None
             print("Continuing with skip...")
             
-        file = self.filemanager.get_next_filename(full_path=True)
+        file = self.filemanager.get_previous_filename(full_path=True)
         print(f"Skipped back to file {file}")
         
         # Sleep so that the user knows that it happened..
@@ -803,9 +802,17 @@ class Elephant(threading.Thread):
         self.raise_event(E_CONFIG_COMPLETE)
     
     def e_mass_storage_enable(self, event_data): 
-        self.logger.info(f"e_mass_storage_enable: {event_data.transition}")
-        load_kernel_module('g_mass_storage')
-        remove_kernel_module('g_midi')
+        #self.logger.info(f"e_mass_storage_enable: {event_data.transition}")
+        # Quick hack to get node to reboot.
+        print("REBOOTING!")
+        status_text = []
+        status_text.append("restarting service")
+        status_text.append("                         ")
+        status_text.append("                         ")
+        self.display_service.display_message(status_text) 
+        os.system('service elephant restart')
+        #load_kernel_module('g_mass_storage')
+        #remove_kernel_module('g_midi')
         
     def e_mass_storage_disable(self, event_data): 
         self.logger.info(f"e_mass_storage_disable: {event_data.transition}")

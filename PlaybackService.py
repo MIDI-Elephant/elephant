@@ -55,7 +55,7 @@ class PlaybackService(threading.Thread):
                 #print(f"Played: {msg}")
          
         # clear output ports
-        if False:
+        if True:
             for port in outPorts:
                 port.panic()
         

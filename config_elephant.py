@@ -141,12 +141,12 @@ except Exception as e:
         generateMIDIClock=True
         midiEcho = False
         show_interfaces = True
-        eventThreadPlugins=['GPIOReadcharThread', 'TCPReadcharThread']
+        eventThreadPlugins=['GPIOReadcharThread', 'TCPReadcharThread', 'TerminalReadcharThread']
         
-        ElephantModeEnabled=False
+        ElephantModeEnabled=True
         Headless=True
-        ContinuousPlaybackEnabled=False
-        TrackingSilenceEnabled=False
+        ContinuousPlaybackEnabled=True
+        TrackingSilenceEnabled=True
         
         use_lcd = True
         use_gpio = True
@@ -328,7 +328,8 @@ indicator_for_state_dict = {
     S_WAITING_FOR_MIDI : (MIDI_LED, c_red_blink),
     S_AUTO_RECORDING : (MIDI_LED, c_red),
     S_SAVING_RECORDING : (MIDI_LED, c_red_flash),
-    S_AUTO_SAVING : (MIDI_LED, c_orange),
+    S_AUTO_SAVING : (MIDI_LED, c_red_flash),
+    #S_AUTO_SAVING : (MIDI_LED, c_orange_flash),
     S_MASS_STORAGE_ENABLED : (MIDI_LED, c_orange_flash),
     S_READY : (MIDI_LED, c_green),
     S_MIDI_ERROR : (MIDI_LED, c_red_flash),

@@ -16,39 +16,27 @@ from queue import Empty
 import ElephantCommon
 import netifaces as netifaces
 import psutil as psutil
+import mido
 
-class TCPReadcharThread(threading.Thread):
+#
+# Discover new MIDI ports for devices that are plugged in etc.
+#
+class MIDIPortDiscoveryService(threading.Thread):
     
     logger=logging.getLogger(__name__)
     
-    first_repeat_wait = .5
-    normal_repeat_wait = .1
-    total_repeat_count = 2
     
     def __init__(self, name, elephant=None):
        # Call the Thread class's init function
        threading.Thread.__init__(self)
        self.name = name
-       self.output_queue=queue.Queue(10)
        self.elephant=elephant
-       
-    def get_output_queue(self):
-        return self.output_queue       
         
     def run(self):
         
-        
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # Bind the socket to the address given on the command line
-        server_name = socket.gethostname()
-        
-        #
-        # Sometimes the service starts up before the wifi has bound
-        # an externally accessible IP address.  So just wait until
-        # we have a non localhost address...
-        #
         while True:
+            sleep(10)
+            currentPorts = self.elephant.get_input_ports()
             try:
                 current_address = socket.gethostbyname(server_name)
                 if current_address.split('.')[0] == '127':

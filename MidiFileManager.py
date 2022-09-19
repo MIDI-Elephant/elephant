@@ -140,6 +140,7 @@ class MidiFileManager():
         if refresh:
             self.refresh()
             
+        # if we're not at the first file already
         if self.current_file_index > 0:
             previous_file_index = self.current_file_index - 1
             self.current_file_index = previous_file_index
@@ -147,6 +148,10 @@ class MidiFileManager():
             
         
         return None
+    
+    
+    def is_silence_file(self, filename):
+        return filename.contains("-S")
     
     def get_file_count(self, refresh=False):
         if refresh:
