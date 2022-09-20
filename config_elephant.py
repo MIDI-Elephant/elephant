@@ -43,6 +43,8 @@ except Exception as e:
     # All platforms can get input from the terminal and via  a TCP connection
     eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
     
+    MAX_MIDI_IDLE_TIME_SECONDS=5
+    
     if __platform__ == "headless":
         
         #eventThreadPlugins=['TCPReadcharThread', 'GPIOReadcharThread', 'TerminalReadcharThread']
@@ -65,8 +67,6 @@ except Exception as e:
         midi_base_directory= '/mnt/usb_share'
             
         max_path_elements=3
-        
-        MAX_MIDI_IDLE_TIME_SECONDS=10
         
         STATUS_GREEN=16
         STATUS_RED=10
@@ -113,8 +113,6 @@ except Exception as e:
         midi_base_directory= '/mnt/usb_share'   
         max_path_elements=3
         
-        MAX_MIDI_IDLE_TIME_SECONDS=10
-        
         MIDI_RED=26 # solid-red = recording, blinking-red = listening for midi
                     # flashing red = saving recording
         MIDI_GREEN=None  
@@ -157,8 +155,6 @@ except Exception as e:
         
         midi_base_directory= '/mnt/usb_share'   
         max_path_elements=3
-        
-        MAX_MIDI_IDLE_TIME_SECONDS=10
         
         MIDI_RED=26 # solid-red = recording, blinking-red = listening for midi
                     # flashing red = saving recording
@@ -212,8 +208,6 @@ except Exception as e:
         #inPortNames=['VMPK Output', 'iRig MIDI 2']
         midi_base_directory= '/Users/edward/MIDI'
         max_path_elements=4
-        
-        MAX_MIDI_IDLE_TIME_SECONDS=10
         
         MIDI_RED=None 
         MIDI_GREEN=None  
