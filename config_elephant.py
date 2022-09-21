@@ -185,8 +185,8 @@ except Exception as e:
         
         ElephantModeEnabled=False
         Headless=True
-        ContinuousPlaybackEnabled=False
-        TrackingSilenceEnabled=False
+        ContinuousPlaybackEnabled=True
+        TrackingSilenceEnabled=True
         
         use_lcd = False
         use_gpio = False

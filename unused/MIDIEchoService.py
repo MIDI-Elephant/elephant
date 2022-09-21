@@ -14,5 +14,4 @@ class MIDIEchoService(threading.Thread):
        threading.Thread.__init__(self)
        self.elephant = elephant
        
-    def run(self):
         

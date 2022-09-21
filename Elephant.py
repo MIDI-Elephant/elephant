@@ -31,7 +31,6 @@ import EventThread
 import KeypadThread
 #import LEDManager
 import MultiColorLEDManager
-import MIDIEventService
 import MidiFileManager
 import PlaybackService
 import RecordingService
@@ -329,6 +328,8 @@ class Elephant(threading.Thread):
        
        self.continuous_playback_enabled=cfg.ContinuousPlaybackEnabled
        self.tracking_silence_enabled=cfg.TrackingSilenceEnabled
+       # Tracking silence only happens after the first recording
+       self.start_tracking_silence=False
        
        
        self.seconds_of_silence=0.0
@@ -389,7 +390,7 @@ class Elephant(threading.Thread):
             status_text.append("*********")
            
         inputCount = 0
-        allInputs = "" 
+        allInputs = "No Input" 
         for port in self.inputPorts:
               if (inputCount > 0):
                   allInputs = allInputs + ", "
