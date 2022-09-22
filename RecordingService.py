@@ -25,8 +25,16 @@ class RecordingService(threading.Thread):
        self.wait_start_time = time.time()
        self.seconds_of_silence = 0.0
        self.note_is_on = [False] * 128
+       self.inputPort = None
+       self.outputPorts = None
      
     
+    def set_input_port(self, port):
+        self.inputPort = port
+        
+    def set_output_ports(self, ports):
+        self.outputPorts = ports
+        
     def reset_note_is_on(self):
         self.note_is_on = [False] * 128
            
@@ -71,7 +79,9 @@ class RecordingService(threading.Thread):
     
     def canEcho(self):
         return not self.isPlaying()\
-          and not self.isSavingRecording()
+          and not self.isSavingRecording()\
+          and not self.inputPort is None
+          
           
     def isTrackingSilence(self):
         return elephant.tracking_silence_enabled and self.elephant.start_tracking_silence
@@ -150,9 +160,9 @@ class RecordingService(threading.Thread):
     def run(self):
         print(f"{self.name} started...")
         print(f"Auto={self.auto}")
-        inPort=self.elephant.get_input_port()
-        outPorts=self.elephant.get_output_ports()
-        for port in outPorts:
+        self.inputPort=self.elephant.get_input_port()
+        self.outputPorts=self.elephant.get_output_ports()
+        for port in self.outputPorts:
             port.panic()
         
         # Start out with a midi file/track
@@ -180,12 +190,20 @@ class RecordingService(threading.Thread):
                 self.wait_for_elephant_states([common.S_AUTO_RECORDING, common.S_RECORDING, common.S_READY])
                 #print("#### RECORDING OR READY FOUND")
             
+            
             if (not self.canEcho()):
                 time.sleep(.001)
                 continue
             
-            # Top of message polling loop
-            msg = inPort.poll()
+            # Top of message polling loop 
+            try:
+                msg = inputPort.poll()
+            except Exception as e:
+                self.logger.info(f"Got an exception: {e} - Waiting for READY state...")
+                self.elephant.set_error(f"{e}")
+                self.raise_event_and_wait_for_elephant_states(common.E_ERROR, [common.S_READY])
+                continue
+                
             if msg is None:
                 time.sleep(.001)
                 if self.isAutoRecording() and self.midi_pause_elapsed(pause_check_start_time):
