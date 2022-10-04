@@ -25,6 +25,7 @@ class RecordingService(threading.Thread):
        self.wait_start_time = time.time()
        self.seconds_of_silence = 0.0
        self.note_is_on = [False] * 128
+       self.sustain_is_on = False
        self.inputPort = None
        self.outputPorts = None
      
@@ -37,6 +38,7 @@ class RecordingService(threading.Thread):
         
     def reset_note_is_on(self):
         self.note_is_on = [False] * 128
+        self.sustain_is_on = False
            
     def track_note(self, msg):
         print(f"Track note: {msg}")
@@ -44,11 +46,16 @@ class RecordingService(threading.Thread):
             self.note_is_on[msg.note] = True
         elif(msg.type == 'note_off'):
             self.note_is_on[msg.note] = False
+        elif (msg.type == 'control_change'):
+            # Sustain pedal tracking
+            if (msg.control == 64):
+                self.sustain_is_on = msg.value != 0
+                print(f"############# SUSTAIN={self.sustain_is_on} #################")
             
         #print(f"self.note_is_on[{msg.note}]=={self.note_is_on[msg.note]}")
             
     def any_note_is_on(self):
-        return True in self.note_is_on
+        return (True in self.note_is_on) or self.sustain_is_on
         
     def set_recording_start_time(self):
         self.last_time = time.time()
@@ -197,7 +204,7 @@ class RecordingService(threading.Thread):
             
             # Top of message polling loop 
             try:
-                msg = inputPort.poll()
+                msg = self.inputPort.poll()
             except Exception as e:
                 self.logger.info(f"Got an exception: {e} - Waiting for READY state...")
                 self.elephant.set_error(f"{e}")
@@ -208,7 +215,7 @@ class RecordingService(threading.Thread):
                 time.sleep(.001)
                 if self.isAutoRecording() and self.midi_pause_elapsed(pause_check_start_time):
                      # If we're not holding a note....
-                     if (not True in self.note_is_on):
+                     if (not self.any_note_is_on()):
                          self.wait_start_time = time.time()
                          self.raise_event_and_wait_for_elephant_states(common.E_MIDI_PAUSED, [common.S_AUTO_SAVING])
                      else:
@@ -220,7 +227,7 @@ class RecordingService(threading.Thread):
             
             # Send the message to all current outputs
             if (common.is_channel_message(msg)):
-                for port in outPorts:
+                for port in self.outputPorts:
                     port.send(msg)
                 print(f"Sent: {msg}")
                 self.track_note(msg)

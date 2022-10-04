@@ -5,7 +5,7 @@ import getopt
 import logging
 from multiprocessing import Value
 
-DEFAULT_LOG_LEVEL=logging.INFO
+DEFAULT_LOG_LEVEL=logging.DEBUG
 
 logging.basicConfig(format='%(levelname)s:%(name)s: %(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=DEFAULT_LOG_LEVEL)
 from ElephantCommon import *
@@ -185,8 +185,8 @@ except Exception as e:
         
         ElephantModeEnabled=False
         Headless=True
-        ContinuousPlaybackEnabled=True
-        TrackingSilenceEnabled=True
+        ContinuousPlaybackEnabled=False
+        TrackingSilenceEnabled=False
         
         use_lcd = False
         use_gpio = False
@@ -201,8 +201,8 @@ except Exception as e:
         #             'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1',
         #             'VMPK Output', 'iRig MIDI 2']
         
-        #outPortNames=['ElephantIAC']
-        outPortNames=['ElephantIAC', 'wavestate 1 In']
+        outPortNames=['ElephantIAC']
+        #outPortNames=['ElephantIAC', 'wavestate 1 In']
         #outPortName2='Network Session 3'
         #midi_base_directory= '/mnt/usb_share'   
        

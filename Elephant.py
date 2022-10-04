@@ -520,7 +520,7 @@ class Elephant(threading.Thread):
         portIndex = 0
         for port in self.inputPorts:
             if (not port.name in hostInputPorts):
-                logger.info(f"Removed inactive input port {port.name}")
+                self.logger.info(f"Removed inactive input port {port.name}")
                 del self.inputPorts[portIndex]
             portIndex = portIndex + 1
             
@@ -536,7 +536,7 @@ class Elephant(threading.Thread):
                 self.logger.info(f"########### Trying to connect to {name}")
                 try:
                     port = mido.open_output(name)
-                    self.outputPorts(f"########### Successfully connected output port={name}")
+                    self.logger.info(f"########### Successfully connected output port={name}")
                 except Exception as e:
                     print(f"######## EXCEPTION opening input={name}, {e}")
                     pass
@@ -549,7 +549,7 @@ class Elephant(threading.Thread):
         portIndex = 0
         for port in self.outputPorts:
             if (not port.name in hostOutputPorts):
-                logger.info(f"Removed inactive output port {port.name}")
+                self.logger.info(f"Removed inactive output port {port.name}")
                 del self.outputPorts[portIndex]
             portIndex = portIndex + 1
     
@@ -940,8 +940,8 @@ class Elephant(threading.Thread):
                 
         self.refresh_midi_ports()
         
-        discoveryService = MIDIPortDiscoveryService.MIDIPortDiscoveryService("MIDIPortDiscovery", self)
-        discoveryService.start()
+        #discoveryService = MIDIPortDiscoveryService.MIDIPortDiscoveryService("MIDIPortDiscovery", self)
+        #discoveryService.start()
         
         self.recordingService = RecordingService.RecordingService("ConstantRecordingService", 
                                                 self, True)
