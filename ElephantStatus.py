@@ -28,6 +28,9 @@ class ElephantStatus(Object):
         self.apiHostPort=apiHostPort,
         self.clientConnected=clientConnected
         
+        
+        
+        
 
 
                  

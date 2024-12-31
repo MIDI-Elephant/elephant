@@ -481,4 +481,12 @@ sudo dphys-swapfile uninstall
 sudo update-rc.d dphys-swapfile remove
 
 
+################
+# Elephant API support - REST Service
+################
+
+pip3 install Flask
+
+
+
 
