@@ -3,13 +3,20 @@
 import sys
 import getopt
 import logging
+from multiprocessing import Value
 
-DEFAULT_LOG_LEVEL=logging.INFO
+DEFAULT_LOG_LEVEL=logging.DEBUG
 
 logging.basicConfig(format='%(levelname)s:%(name)s: %(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=DEFAULT_LOG_LEVEL)
 from ElephantCommon import *
 
 logger=logging.getLogger('Configuration')
+
+show_interfaces = False
+midiEcho = True
+
+defaultMIDIClockBPM = 120
+generateMIDIClock = False
 
 try:
     logger.info(f"Already configured for platform {__platform__}")
@@ -28,8 +35,6 @@ except Exception as e:
     except getopt.GetoptError:
         logger.error(f"{argv[0]} --platform=[headless|dev|mac]")
         logger.error(f"No platform provided, continuing with default=headless")
-    
-   
        
     
     logger.info(f"Configuring Elephant for platform '{__platform__}'")
@@ -37,6 +42,8 @@ except Exception as e:
     #
     # All platforms can get input from the terminal and via  a TCP connection
     eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
+    
+    MAX_MIDI_IDLE_TIME_SECONDS=5
     
     if __platform__ == "headless":
         
@@ -52,14 +59,14 @@ except Exception as e:
         use_gpio = True
         use_kmod = True
         
-        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1',
+        
+        inPortNames=['Nord Grand:Nord Grand MIDI 1 24:0',
+                    'Novation SL MkIII:Novation SL MkIII MIDI 1',
                      'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1']
         outPortName='f_midi'
         midi_base_directory= '/mnt/usb_share'
             
         max_path_elements=3
-        
-        MAX_MIDI_IDLE_TIME_SECONDS=10
         
         STATUS_GREEN=16
         STATUS_RED=10
@@ -84,8 +91,10 @@ except Exception as e:
         FORWARD_BOARD=None
         MASS_STORAGE_BOARD=12
         
-    elif __platform__ == "dev":
+    elif __platform__ == "desktop":
         
+        generateMIDIClock = True
+        show_interfaces = True
         eventThreadPlugins=['GPIOReadcharThread', 'TCPReadcharThread']
         
         ElephantModeEnabled=False
@@ -97,16 +106,15 @@ except Exception as e:
         use_gpio = True
         use_kmod = True
         
-        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1',
-                     'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1']
-        outPortName='f_midi'
+        inPortNames=['MPK mini 3:MPK mini 3 MIDI 1 24:0']
+        outPortNames=['f_midi:f_midi 20:0', 'wavestate:wavestate MIDI 1 28:0']
+        #outPortName='Nord Grand:Nord Grand MIDI 1 24:0'
         
         midi_base_directory= '/mnt/usb_share'   
         max_path_elements=3
         
-        MAX_MIDI_IDLE_TIME_SECONDS=10
-        
-        MIDI_RED=26 # solid-red = recording, flashing-red = listening for midi
+        MIDI_RED=26 # solid-red = recording, blinking-red = listening for midi
+                    # flashing red = saving recording
         MIDI_GREEN=None  
         STATUS_GREEN=None 
         STATUS_RED=None
@@ -125,11 +133,55 @@ except Exception as e:
         BACK_BOARD=21
         FORWARD_BOARD=23
         MASS_STORAGE_BOARD=None
+    
+    elif __platform__ == "dev":
         
+        generateMIDIClock=True
+        midiEcho = False
+        show_interfaces = True
+        eventThreadPlugins=['GPIOReadcharThread', 'TCPReadcharThread', 'TerminalReadcharThread']
+        
+        ElephantModeEnabled=True
+        Headless=True
+        ContinuousPlaybackEnabled=True
+        TrackingSilenceEnabled=True
+        
+        use_lcd = True
+        use_gpio = True
+        use_kmod = True
+        
+        inPortNames=['Nord Grand:Nord Grand MIDI 1 24:0', 'wavestate:wavestate MIDI 1 28:0']
+        outPortNames=['Nord Grand:Nord Grand MIDI 1 24:0', 'wavestate:wavestate MIDI 1 28:0']
+        
+        midi_base_directory= '/mnt/usb_share'   
+        max_path_elements=3
+        
+        MIDI_RED=26 # solid-red = recording, blinking-red = listening for midi
+                    # flashing red = saving recording
+        MIDI_GREEN=None  
+        STATUS_GREEN=None 
+        STATUS_RED=None
+        
+        #
+        # These constants refer to the pin numbers on the 
+        # Orange Pi Zero LTS that correspond to buttons
+        # on a given hardware device.  Only the 'dev' and 'headless'
+        # platforms for Elephant have buttons so these do not
+        # need to be defined for other platforms
+        #
+        STOP_BOARD=11
+        PLAY_BOARD=13
+        RECORD_BOARD=15
+        AUTO_RECORD_BOARD=19
+        BACK_BOARD=21
+        FORWARD_BOARD=23
+        MASS_STORAGE_BOARD=None
+    
         
     elif __platform__ == "mac":
         
-        eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
+        #eventThreadPlugins=['TerminalReadcharThread', 'TCPReadcharThread']
+        eventThreadPlugins=['TerminalReadcharThread']
         
         ElephantModeEnabled=False
         Headless=True
@@ -140,19 +192,23 @@ except Exception as e:
         use_gpio = False
         use_kmod = False
         
-        inPortNames=['Novation SL MkIII:Novation SL MkIII MIDI 1',
-                     'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1',
-                     'VMPK Output', 'iRig MIDI 2']
+
+        inPortNames=['MPK mini 3']
+        #inPortNames=['MPK mini 3', 'VMPK Output']
         
-        outPortName='ElephantIAC'
-        midi_base_directory= '/mnt/usb_share'   
+        #inPortNames=['Nord Grand MIDI Output', 'Nord Grand:Nord Grand MIDI 1 24:0',
+        #              'Novation SL MkIII:Novation SL MkIII MIDI 1',
+        #             'UM-ONE:UM-ONE MIDI 1', 'MIDI9/QRS PNOScan MIDI 1',
+        #             'VMPK Output', 'iRig MIDI 2']
+        
+        outPortNames=['ElephantIAC']
+        #outPortNames=['ElephantIAC', 'wavestate 1 In']
+        #outPortName2='Network Session 3'
+        #midi_base_directory= '/mnt/usb_share'   
        
-       
-        inPortNames=['VMPK Output', 'iRig MIDI 2']
+        #inPortNames=['VMPK Output', 'iRig MIDI 2']
         midi_base_directory= '/Users/edward/MIDI'
         max_path_elements=4
-        
-        MAX_MIDI_IDLE_TIME_SECONDS=10
         
         MIDI_RED=None 
         MIDI_GREEN=None  
@@ -266,8 +322,9 @@ indicator_for_state_dict = {
     S_PLAYING_PAUSED :(MIDI_LED, c_yellow_blink),
     S_WAITING_FOR_MIDI : (MIDI_LED, c_red_blink),
     S_AUTO_RECORDING : (MIDI_LED, c_red),
-    S_SAVING_RECORDING : (MIDI_LED, c_orange),
-    S_AUTO_SAVING : (MIDI_LED, c_orange),
+    S_SAVING_RECORDING : (MIDI_LED, c_red_flash),
+    S_AUTO_SAVING : (MIDI_LED, c_red_flash),
+    #S_AUTO_SAVING : (MIDI_LED, c_orange_flash),
     S_MASS_STORAGE_ENABLED : (MIDI_LED, c_orange_flash),
     S_READY : (MIDI_LED, c_green),
     S_MIDI_ERROR : (MIDI_LED, c_red_flash),

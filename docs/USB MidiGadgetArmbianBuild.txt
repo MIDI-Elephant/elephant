@@ -307,7 +307,8 @@ vim elephant.service
 # Service definition
 [Unit]
 Description=The Elephant MIDI Service
-After=network.target
+Wants=network-online.target
+After=network.target network-online.target
 
 [Service]
 Type=simple
@@ -487,6 +488,8 @@ sudo update-rc.d dphys-swapfile remove
 
 pip3 install Flask
 
+# Required to get IP address of a specific interface
+pip3 install netifaces
 
 
 

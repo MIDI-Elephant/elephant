@@ -31,21 +31,16 @@ import EventThread
 import KeypadThread
 #import LEDManager
 import MultiColorLEDManager
+import MIDIEventService
 import MidiFileManager
 import PlaybackService
+import RecordingServiceWithEcho
 import RecordingService
-import MIDIClockGenerator
-import MIDIPortDiscoveryService
-
-from multiprocessing import Value
-import atexit
 
 import config_elephant as cfg
 import yappi
 
 import netifaces as ni
-
-import os as os
 
 try:
     import i2clcd as LCD
@@ -196,11 +191,7 @@ states = [
               on_enter=['e_mass_storage_enable']),
           State(
               name=S_MASS_STORAGE_DISABLING,
-              on_enter=['e_mass_storage_disable']),
-          State(
-              name=S_ELEPHANT_ERROR,
-              on_enter=['e_error']
-              ),
+              on_enter=['e_mass_storage_disable'])
           ]
 
 transitions = [
@@ -271,22 +262,19 @@ transitions = [
         [ E_MIDI_DETECTED, S_WAITING_FOR_MIDI, S_AUTO_RECORDING ],
         [ E_MIDI_PAUSED, S_AUTO_RECORDING, S_AUTO_SAVING ],
         [ E_RECORDING_SAVED, S_AUTO_SAVING, S_WAITING_FOR_MIDI ],
-        [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_READY],
         [ E_STOP_BUTTON, S_AUTO_RECORDING, S_SAVING_RECORDING ],
+        [ E_RECORDING_SAVED, S_SAVING_RECORDING, S_READY],
         [ E_STOP_BUTTON, S_WAITING_FOR_MIDI, S_READY ],
         [ E_SWITCH_MODE, S_WAITING_FOR_MIDI, S_MASS_STORAGE_ENABLED],
         [ E_SWITCH_MODE, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_DISABLING],
         [ E_MASS_STORAGE_DISABLE, S_MASS_STORAGE_DISABLING, S_READY],
         [ E_MASS_STORAGE_DISABLED_FROM_AUTORECORD, S_MASS_STORAGE_DISABLING, S_WAITING_FOR_MIDI],
-        [ E_AUTO_RECORD_BUTTON, S_READY, S_WAITING_FOR_MIDI],
-        [ E_ERROR, S_ANY, S_ELEPHANT_ERROR],
-        [ E_ERROR_CLEARED, S_ANY, S_READY]
+        [ E_AUTO_RECORD_BUTTON, S_READY, S_WAITING_FOR_MIDI]
     ]
 
 import threading, sys, traceback
 
 def dumpstacks(signal, frame):
-    
     id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
     code = []
     for threadId, stack in sys._current_frames().items():
@@ -299,6 +287,7 @@ def dumpstacks(signal, frame):
 
 import signal
 signal.signal(signal.SIGQUIT, dumpstacks)
+
 
 
 class Elephant(threading.Thread):
@@ -327,35 +316,36 @@ class Elephant(threading.Thread):
        self.filemanager = None
        self.display_service = None
        
-       self.playbackService = None
-       self.recordingService = None
+       self.playbackservice = None
+       self.recordingservice = None
        self.midiEventService = None
        
        self.withEcho = False
        
        self.continuous_playback_enabled=cfg.ContinuousPlaybackEnabled
        self.tracking_silence_enabled=cfg.TrackingSilenceEnabled
-       # Tracking silence only happens after the first recording
-       self.start_tracking_silence=False
        
        
        self.seconds_of_silence=0.0
        self.isRunning=True
+
+       self.eth0 = None
+       self.wlan0 = None
        
+       if (cfg.show_interfaces):
+           self.eth0 = ni.ifaddresses('eth0')
+           self.wlan0 = ni.ifaddresses('wlan0')
+           
        self.ipaddress = None
-        
+       
+       if (not self.wlan0 == None):
+           self.ipaddress = f"wlan0={self.wlan0[ni.AF_INET][0]['addr']}"
+       elif (not self.eth0 == None):
+           self.ipaddress = f"eth0={self.eth0[ni.AF_INET][0]['addr']}"
+       else:
+           self.ipaddress="ipaddress=None"
+           
        self.get_input_port()
-       
-       self.midiClocks = []
-       
-       self.errortext = ""
-       
-    def set_error(self, text):
-        self.errortext = text
-    
-    def set_ip_address(self, addr):
-        self.ipaddress = addr
-        self.display_status(pause=0)
      
     def set_indicator_for_state(self, state):
         self.logger.debug(f"########### Looking for indicator for state {state}")
@@ -372,7 +362,7 @@ class Elephant(threading.Thread):
             except Exception as e:
                 logger.warning(f"No indicator found for state {state}, {e}")
         else:
-            self.logger.debug(f"No LED managers are active.")
+            #print(f"No LED managers are active.")
             pass
                 
     def display_status(self, pause=0):
@@ -380,7 +370,7 @@ class Elephant(threading.Thread):
         status_text = []
         status_text.append(self.state)
         
-        if self.state not in [S_RECORDING, S_AUTO_RECORDING, S_WAITING_FOR_MIDI, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_DISABLING, S_ELEPHANT_ERROR]:
+        if self.state not in [S_RECORDING, S_AUTO_RECORDING, S_WAITING_FOR_MIDI, S_MASS_STORAGE_ENABLED, S_MASS_STORAGE_DISABLING]:
             try:
                 file_tuple = self.filemanager.get_current_file_tuple()
             except:
@@ -389,30 +379,21 @@ class Elephant(threading.Thread):
                 file_tuple = None
             if file_tuple != None:
                 seconds = "{:.1f}".format(file_tuple[1])
-                filename = file_tuple[0]
-                # If it's silence, name it so...
-                if (filename.find("-S") != -1):
-                    filename = "SILENCE"
-                
-                status_text.append(f"{filename} {seconds}s")
+                status_text.append(f"{file_tuple[0]} {seconds}s")
             else:
                 status_text.append("No Recordings")
-        elif (self.state == S_ELEPHANT_ERROR):
-            status_text.append(f"ERROR: {self.errortext}")
         else:
             status_text.append("*********")
-           
+        
+        allInputs = ""
         inputCount = 0
-        allInputs = "" 
-        for port in self.inputPorts:
+        for name in cfg.inPortNames:
               if (inputCount > 0):
                   allInputs = allInputs + ", "
-              allInputs = allInputs + port.name.split(":", 1)[0].split()[0]
+              allInputs = allInputs + name.split(":", 1)[0]
               inputCount = inputCount + 1
-           
-        if (inputCount == 0):
-            allInputs = "None"  
-        status_text.append(f"In: {allInputs}")
+              
+        status_text.append(f"{allInputs}")
         status_text.append(self.ipaddress)
         status_text.append("")
         self.display_service.display_message(status_text, pause=pause)    
@@ -422,8 +403,7 @@ class Elephant(threading.Thread):
         status_text.append(self.state)
         status_text.append(self.filemanager.get_current_filename())
         status_text.append(exception)
-        #self.display_service.display_message(status_text, clear, pause)    
-        self.display_service.display_message(status_text)    
+        self.display_service.display_message(status_text, clear, pause)    
         
     
     def get_last_saved_file(self):
@@ -446,9 +426,6 @@ class Elephant(threading.Thread):
     def set_midi_file(self, file):
         self.logger.debug(f"############ SET MIDIFILE TO {file}")
         self.midifile = file
-        
-    def get_midi_file(self):
-        return self.midifile
     
     def get_state(self):
         return self.state
@@ -463,46 +440,10 @@ class Elephant(threading.Thread):
         self.inputPort = inputPort
         
     def get_input_port(self):
-        if (self.inputPort is None):
-            self.refresh_midi_ports()
-        return self.inputPort
-    
-    #
-    # This method uses a configurable list of MIDI input and output
-    # ports to determine which of these ports are available or no
-    # longer available on the current host and to make sure that the view
-    # that Elephant has remains synchronized.  The MIDIPortDiscoveryService
-    # calls this method every 3 seconds any time Elephant is in the S_READY state.
-    # This functionality, for example, will allow for new devices to 
-    # be plugged in or unplugged and will give Elephant the most
-    # current, up-to-date view of the ports that it's interested in.
-    #
-    def refresh_midi_ports(self):
-        
-        self.logger.info("########## Entering refresh_midi_ports()")
-        
-        # Currently open input ports
-        currentInputPorts=self.inputPorts
-        # Input ports available on the host
-        hostInputPorts=mido.get_input_names()
-        # Input ports configured to be opened
-        allowedInputPorts=cfg.inPortNames
-        
-        # Currently open output ports
-        currentOutputPorts=self.outputPorts
-        # Output ports available on the host
-        hostOutputPorts=mido.get_output_names()
-        # Output ports configured to be opened
-        allowedOutputPorts=cfg.outPortNames
-        
-        newInputPorts = []
-        for name in allowedInputPorts:
-            #self.logger.info(f"Checking for open input port {name}")
-            activePort = None
-            if (len(self.inputPorts) > 0):
-                activePort = [port for port in self.inputPorts if port.name == name]
-            
-            if (not activePort):
+        self.logger.info("########## Entering get_input_port()")
+        if self.inputPort is None:
+            self.logger.info(f"########## Checking for a port to open in: {cfg.inPortNames}")
+            for name in cfg.inPortNames: #mido.get_input_names():
                 self.logger.info(f"########### Trying to connect to {name}")
                 try:
                     port = mido.open_input(name)
@@ -510,69 +451,86 @@ class Elephant(threading.Thread):
                     self.logger.info(f"########### Successfully connected input port={name}")
                 except Exception as e:
                     print(f"######## EXCEPTION opening input={name}, {e}")
-                    continue
-            else:
-                self.logger.info(f"INPUT Port {name} is already open.")
-                continue
-           
-        # Now check for any ports that we currently have open but for which
-        # the host does not have a device. Something was unplugged?
-        portIndex = 0
-        for port in self.inputPorts:
-            if (not port.name in hostInputPorts):
-                self.logger.info(f"Removed inactive input port {port.name}")
-                del self.inputPorts[portIndex]
-            portIndex = portIndex + 1
-            
-        self.inputPort = MultiPort(self.inputPorts)
-        
-                
-        
-        for name in allowedOutputPorts:
-            self.logger.info(f"Checking for open output port {name}")
-            activePort = [port for port in self.outputPorts if port.name == name]
-            
-            if (not activePort):
-                self.logger.info(f"########### Trying to connect to {name}")
-                try:
-                    port = mido.open_output(name)
-                    self.logger.info(f"########### Successfully connected output port={name}")
-                except Exception as e:
-                    print(f"######## EXCEPTION opening input={name}, {e}")
                     pass
-            else:
-                self.logger.info(f"OUTPUT Port {name} is already open.")
-                continue
-            
-        # Now check for any ports that we currently have open but for which
-        # the host does not have a device. Something was unplugged?
-        portIndex = 0
-        for port in self.outputPorts:
-            if (not port.name in hostOutputPorts):
-                self.logger.info(f"Removed inactive output port {port.name}")
-                del self.outputPorts[portIndex]
-            portIndex = portIndex + 1
-    
+        
+        self.inputPort = MultiPort(self.inputPorts)
+               
+        return self.inputPort
     
     def close_output_port(self):
-        ##print("########## CLOSE OUTPUTS CALLED ############")
         for port in self.outputPorts:
             port.close()
         
     
     def get_output_ports(self):
-        self.refresh_midi_ports()
+        print(f"############# NEW METHOD #############")
+        for name in cfg.outPortNames: #mido.get_output_names():
+            self.logger.info(f"########### Opening output to {name}")
+            try:
+                port = mido.open_output(name)
+                self.outputPorts.append(port)
+                self.logger.info(f"########### Successfully opened output port={name}")
+            except Exception as e:
+                self.logger.info(f"######### Exception while opening output={name}, {e}")
+                pass
+                
         return self.outputPorts
 
 
+    
+    
     def raise_event(self, event_name):
-        print(f"########### RAISE EVENT CALLED WITH EVENT {event_name} ##########")
         try:
             self.event_queue.put(event_name)
         except Exception as exception:
             self.logger.exception(exception)    
     
-    
+    #
+    # If we are tracking 'silence', save a file that represents
+    # the total amount of 'silence' since the last save
+    #
+    def save_silence(self):  
+        filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}-S.mid"
+        file_to_save=f"{cfg.midi_base_directory}/{filename}"
+        self.logger.debug(f"Saving silence of {self.seconds_of_silence} to {file_to_save}")
+        midifile = mido.MidiFile(filename=None, file=None, type=0, ticks_per_beat=20000) 
+        track = mido.MidiTrack()
+        midifile.tracks.append(track)
+        ticksPerBeat = 10000
+        tempo = mido.bpm2tempo(120)
+        
+        current_time = time.time()
+        delta_time = self.seconds_of_silence
+        intTime = int(mido.second2tick(delta_time, ticksPerBeat, tempo))
+        msg = mido.Message('note_on', note=0, velocity=0, time=intTime)
+        # print(f"Appended: {msg}")
+        track.append(msg)
+        midifile.save(file_to_save)
+        self.seconds_of_silence=0.0
+
+        
+            
+    def save_recording(self):
+        self.logger.debug(f"############# Entering save_recording")
+        if self.midifile is None:
+            self.logger.info(f"######## NO MIDIFILE - CANNOT SAVE!")
+            return
+        
+        try:
+            filename = f"{datetime.today().strftime('%y%m%d%H%M%S')}.mid"
+            file_to_save=f"{cfg.midi_base_directory}/{filename}"
+            self.logger.info(f"File={file_to_save}")
+            self.midifile.save(file_to_save) 
+            self.last_saved_file = filename
+            self.set_midi_file(None)
+            
+            self.close_input_port()
+            self.close_output_port()
+            self.filemanager.refresh()
+            self.raise_event(E_RECORDING_SAVED)
+        except Exception as e:
+            self.display_exception(e)
+            
     #####################################################        
     # State machine events are defined here        
     #####################################################
@@ -580,35 +538,36 @@ class Elephant(threading.Thread):
         pass
         
     def e_waiting_for_midi(self, event_data): 
-        pass
-        #self.midiEventService = MIDIEventService.MIDIEventService(name="MIDIEventService", 
-        #                                        elephant=self)
-        #self.midiEventService.start()
+        self.midiEventService = MIDIEventService.MIDIEventService(name="MIDIEventService", 
+                                                elephant=self)
+        self.midiEventService.start()
         
             
     def x_waiting_for_midi(self, event_data): 
         pass
         
-    def e_auto_recording(self, event_data):
-        self.recordingService.set_recording_start_time() 
+    def e_auto_recording(self, event_data): 
+        if (not self.withEcho):
+            recordingService = RecordingService.RecordingService("AutoRecordingService", 
+                                                self, True)
+            recordingService.start()
             
     def x_auto_recording(self, event_data): 
         pass
         
     def e_auto_saving(self, event_data): 
-        #self.save_recording()
-        pass
+        self.save_recording()
     
     def x_auto_saving(self, event_data): 
         pass
     
     def e_playing(self, event_data): 
         if event_data.transition.source != S_PLAYING_PAUSED:
-            self.playbackService = PlaybackService.PlaybackService(name="PlaybackService", 
+            self.playbackservice = PlaybackService.PlaybackService(name="PlaybackService", 
                                                           elephant=self, continuous=self.continuous_playback_enabled)
-            self.playbackService.start()
+            self.playbackservice.start()
         else:
-            self.playbackService.pause_event.set()
+            self.playbackservice.pause_event.set()
        
         
     def e_continuous_playback_enable(self, event_data): 
@@ -636,15 +595,18 @@ class Elephant(threading.Thread):
 
     def e_playing_paused(self, event_data):
         print(f"Enter {self.state}")
-        self.playbackService.pause_event.clear() 
+        self.playbackservice.pause_event.clear() 
 
     def x_playing_paused(self, event_data): 
         #print(f"Exit {self.state}")
         pass
 
-    def e_recording(self, event_data):
-        self.recordingService.set_recording_start_time() 
-        pass
+    def e_recording(self, event_data): 
+        if (not self.withEcho):
+            recordingService = RecordingService.RecordingService("RecordingService", 
+                                                             self, False)
+            recordingService.start()
+
 
     def x_recording(self, event_data): 
         pass
@@ -658,9 +620,7 @@ class Elephant(threading.Thread):
         #print(f"Exit {self.state}")
 
     def e_saving_recording(self, event_data) : 
-        #print("######## EVENT E_SAVING_RECORDING ########")
-        #self.save_recording()
-        pass
+        self.save_recording()
        
 
     def x_saving_recording(self, event_data) :
@@ -668,8 +628,8 @@ class Elephant(threading.Thread):
 
     def e_ready(self, event_data) :
         print(event_data.transition)
-        if self.playbackService != None:
-            self.playbackService = None
+        if self.playbackservice != None:
+            self.playbackservice = None
         load_kernel_module('g_midi')
         
     def x_ready(self, event_data) :
@@ -681,19 +641,21 @@ class Elephant(threading.Thread):
             self.raise_event(E_PREVIOUS_FILE)
         else:
             self.raise_event(E_NO_FILE)
+        
+
 
     def x_skip_back_while_ready(self, event_data): 
         pass
     
     def e_skip_back_while_playing(self, event_data): 
-        if self.playbackService != None:
+        if self.playbackservice != None:
             print("Waiting for playback thread to terminate...")
-            self.playbackService.event.set()
-            self.playbackService.join()
-            self.playbackService = None
+            self.playbackservice.event.set()
+            self.playbackservice.join()
+            self.playbackservice = None
             print("Continuing with skip...")
             
-        file = self.filemanager.get_previous_filename(full_path=True)
+        file = self.filemanager.get_next_filename(full_path=True)
         print(f"Skipped back to file {file}")
         
         # Sleep so that the user knows that it happened..
@@ -744,11 +706,11 @@ class Elephant(threading.Thread):
     
     def e_skip_forward_while_playing(self, event_data): 
         print(event_data.transition)
-        if self.playbackService != None:
+        if self.playbackservice != None:
             print("Waiting for playback thread to terminate...")
-            self.playbackService.event.set()
-            self.playbackService.join()
-            self.playbackService = None
+            self.playbackservice.event.set()
+            self.playbackservice.join()
+            self.playbackservice = None
             print("Continuing with skip...")
             
         file = self.filemanager.get_next_filename()
@@ -807,17 +769,9 @@ class Elephant(threading.Thread):
         self.raise_event(E_CONFIG_COMPLETE)
     
     def e_mass_storage_enable(self, event_data): 
-        #self.logger.info(f"e_mass_storage_enable: {event_data.transition}")
-        # Quick hack to get node to reboot.
-        print("REBOOTING!")
-        status_text = []
-        status_text.append("restarting service")
-        status_text.append("                         ")
-        status_text.append("                         ")
-        self.display_service.display_message(status_text) 
-        os.system('service elephant restart')
-        #load_kernel_module('g_mass_storage')
-        #remove_kernel_module('g_midi')
+        self.logger.info(f"e_mass_storage_enable: {event_data.transition}")
+        load_kernel_module('g_mass_storage')
+        remove_kernel_module('g_midi')
         
     def e_mass_storage_disable(self, event_data): 
         self.logger.info(f"e_mass_storage_disable: {event_data.transition}")
@@ -828,32 +782,6 @@ class Elephant(threading.Thread):
         else:
             self.raise_event(E_MASS_STORAGE_DISABLED_FROM_AUTORECORD)
    
-   
-    #
-    # We got some sort of error.  Clean up as best as possible
-    # and signal we are ready to be ready....
-    #
-    def e_error(self, event_data):
-        self.logger.info(f"e_error: {event_data.transition}")
-        for port in self.inputPorts:
-            try:
-                port.close()
-            except Exception as e:
-                continue
-        self.inputPorts = None
-        self.inputPort = None
-        
-        for port in self.outputPorts:
-            try:
-                port.close()
-            except Exception as e:
-                continue
-        self.outputPorts = None
-                
-        #self.refresh_midi_ports()
-        #self.display_status(pause=2)
-        self.raise_event(E_ERROR_CLEARED) 
-         
     #
     # Start up threads that manage LED states if necessary.    
     def setup_led_managers(self):
@@ -875,8 +803,10 @@ class Elephant(threading.Thread):
         if len(active_mgr_list) > 0:
             self.active_led_managers = dict(active_mgr_list)
 
+    
+       
     def all_events_callback(self, event_data):
-        self.logger.info(f"### TRANSITION LOGGING: {event_data.transition}")
+        self.logger.debug(event_data.transition)
         to_state=event_data.transition.dest 
         self.set_indicator_for_state(to_state)
         
@@ -907,47 +837,11 @@ class Elephant(threading.Thread):
                                                            elephant=self)
         self.filemanager.refresh()
     
-    def cleanup(self):
-        for proc in self.midiClocks:
-            print(f"Cleaning up clock {proc.out_port.name}")
-            proc.run_flag.value = 0
-            proc.join()
-            print(f"Clock {proc.out_port.name} exited...")
-            
-        self.midiClocks = []
-            
-        sys.exit(0)
     
     def run(self):
-        
-        atexit.register(self.cleanup)
-        
         self.setup_state_machine()
         
         self.display_status()
-        
-        self.get_output_ports()
-        
-        if (cfg.generateMIDIClock):
-            ##print("############### STARTING MIDI CLOCKS ################")
-            # Start MIDI clock
-            run_code = Value('i', 1)
-            bpm = Value('i',cfg.defaultMIDIClockBPM)
-            for port in self.outputPorts:
-                midi_clock_generator_proc = MIDIClockGenerator.MIDIClockGenerator(port, bpm, run_code)
-                midi_clock_generator_proc.start()
-                self.midiClocks.append(midi_clock_generator_proc)
-                
-        self.refresh_midi_ports()
-        
-        #discoveryService = MIDIPortDiscoveryService.MIDIPortDiscoveryService("MIDIPortDiscovery", self)
-        #discoveryService.start()
-        
-        self.recordingService = RecordingService.RecordingService("ConstantRecordingService", 
-                                                self, True)
-        self.recordingService.start()
-        
-        
 
         ## Cleanup - exception handling etc.
         # Open up the input and output ports.  It's OK to run
@@ -973,10 +867,12 @@ class Elephant(threading.Thread):
         except Exception as e:
             self.display_exception(e)
 
+if __name__ == '__main__':
+    
+    import threading, sys, traceback, logging
+    logger=logging.getLogger(__name__)
 
-def dumpstacks(signal, frame):
-        ##print("########### QUITTING ##########")
-        return
+    def dumpstacks(signal, frame):
         id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
         code = []
         for threadId, stack in sys._current_frames().items():
@@ -987,26 +883,15 @@ def dumpstacks(signal, frame):
                     code.append("  %s" % (line.strip()))
                     print(f"\n".join(code))
 
-
-def main():
-    import threading, sys, traceback, logging
     import signal
-    from functools import partial
+    signal.signal(signal.SIGQUIT, dumpstacks)
     
-    elephant_thread = Elephant(name='Elephant')
     
-    def kill_handler(signal, frame):
-        elephant_thread.cleanup()
-        elephant_thread.display_service.display("Elephant Done!", clear=True, pause=1)
-        sys.exit(0)
-    
-    signal.signal(signal.SIGQUIT, kill_handler)
-    signal.signal(signal.SIGINT, kill_handler)
     
     try:
         if cfg.DEFAULT_LOG_LEVEL==logging.DEBUG:
             yappi.start()
-            
+        elephant_thread = Elephant(name='Elephant')
         elephant_thread.start()
         elephant_thread.join()
         
@@ -1024,10 +909,3 @@ def main():
                 )  # it is the Thread.__class__.__name__
                 yappi.get_func_stats(ctx_id=thread.id).print_all()
         sys.exit(0)
-        
-        
-
-if __name__ == '__main__':
-    logger=logging.getLogger(__name__)
-    main()
-    

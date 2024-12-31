@@ -43,14 +43,14 @@ class GPIOReadcharThread(threading.Thread):
         setup_gpio()
         sleep(1)
         while True:
-            sleep(.01)
+            sleep(.04)
             try:
                 for pin in all_board_pins:
                     # headless platform only has one switch
                     if pin == None:
                         continue
                     if GPIO.input(pin):
-                        sleep(.03) # debounce...
+                        sleep(.04) # debounce...
                         while GPIO.input(pin):
                            char = board_pin_to_char[pin]
                            self.logger.debug(f"Putting char '{char}' into output queue")

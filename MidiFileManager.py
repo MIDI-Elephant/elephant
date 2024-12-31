@@ -76,7 +76,8 @@ class MidiFileManager():
                 self.current_tuples.append(new_file_tuple)
             except Exception as e:
                 print(f"Exception opening {midifile_path}: {e}")
-        
+                os.remove(midifile_path)
+                print(f"Removed invalid file: {midifile_path}")
         
         if len(self.current_list) > 0:
             # point at last element
@@ -139,6 +140,7 @@ class MidiFileManager():
         if refresh:
             self.refresh()
             
+        # if we're not at the first file already
         if self.current_file_index > 0:
             previous_file_index = self.current_file_index - 1
             self.current_file_index = previous_file_index
@@ -146,6 +148,10 @@ class MidiFileManager():
             
         
         return None
+    
+    
+    def is_silence_file(self, filename):
+        return filename.contains("-S")
     
     def get_file_count(self, refresh=False):
         if refresh:
@@ -169,7 +175,7 @@ class MidiFileManager():
             self.set_midi_file(None)
             
             self.close_input_port()
-            self.close_output_port()
+            #self.close_output_port()
             self.filemanager.refresh()
             self.raise_event(E_RECORDING_SAVED)
         except Exception as e:

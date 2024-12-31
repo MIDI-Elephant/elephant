@@ -45,6 +45,8 @@ E_TRACKING_SILENCE_DISABLE='E_TrackingSilenceDisable'
 E_MASS_STORAGE_DISABLE='E_MassStorageDisable'
 E_MASS_STORAGE_DISABLED='E_MassStorageDisabled'
 E_MASS_STORAGE_DISABLED_FROM_AUTORECORD='E_MassStorageDisabledFromAutorecord'
+E_ERROR='E_Error'
+E_ERROR_CLEARED='E_ErrorCleared'
 
 #
 # This table maps characters that can be typed
@@ -126,6 +128,7 @@ S_MIDI_ERROR='MIDIError'
 S_ELEPHANT_ERROR='ElephantError'
 S_ELEPHANT_ONLINE='ElephantOnline'
 S_CLIENT_CONNECTED='ClientConnected'
+S_ANY='*'
 
 class ElephantStates(Enum):
     S_READY = 'ElephantReady'
@@ -155,6 +158,7 @@ class ElephantStates(Enum):
     S_ELEPHANT_ERROR = 'ElephantError'
     S_ELEPHANT_ONLINE = 'ElephantOnline'
     S_CLIENT_CONNECTED = 'ClientConnected'
+    S_ANY = '*'
     
     def getState(self, state):
         return repr(state)
@@ -184,5 +188,6 @@ midi_channel_messages = {
     'aftertouch' : 'channel value',
     'pitchwheel' : 'channel pitch'
 }
+    
 
 

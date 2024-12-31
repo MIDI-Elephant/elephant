@@ -14,6 +14,8 @@ import tty as tty
 import socket
 from queue import Empty
 import ElephantCommon
+import netifaces as netifaces
+import psutil as psutil
 
 class TCPReadcharThread(threading.Thread):
     
@@ -31,8 +33,8 @@ class TCPReadcharThread(threading.Thread):
        self.elephant=elephant
        
     def get_output_queue(self):
-        return self.output_queue
-    
+        return self.output_queue       
+        
     def run(self):
         
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -46,15 +48,20 @@ class TCPReadcharThread(threading.Thread):
         # we have a non localhost address...
         #
         while True:
-            current_address = socket.gethostbyname(server_name)
-            if current_address.split('.')[0] == '127':
-                print(f"Address={current_address}. Retrying...")
-                time.sleep(5)
-            else:
-                break
+            try:
+                current_address = socket.gethostbyname(server_name)
+                if current_address.split('.')[0] == '127':
+                    self.logger.info(f"Address={current_address}. Retrying in 3 seconds...")
+                    time.sleep(3)
+                else:
+                    break
+            except Exception as e:
+                self.logger.info(f"Exception while getting host address: {e}. Retrying in 3 seconds...")
+                sleep(3)
         
         server_address = (current_address, 10000)
-        self.logger.info(f"starting up on {server_address}")
+        self.logger.info(f"Set current host address={server_address}")
+        self.elephant.set_ip_address(server_address[0])
         
         sock.bind(server_address)
         sock.listen(1)
